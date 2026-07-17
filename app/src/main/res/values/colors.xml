@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors the surface-0 token from design/claude-design/tokens/colors.css.
+         Used only by the window theme; Compose colors land in M2. -->
+    <color name="surface_0">#0E1013</color>
+    <color name="ic_launcher_background">#0E1013</color>
+</resources>

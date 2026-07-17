@@ -4,7 +4,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Greenfield. The repo has no source yet. The Android project has not been scaffolded, so there are no build/test/lint commands yet. Once Gradle exists, the usual entry points will be `./gradlew assembleDebug`, `./gradlew test` (unit), `./gradlew connectedAndroidTest` (instrumented), and `./gradlew test --tests '*ClassName.methodName'` for a single test — **update this section with the real commands as soon as the project is scaffolded, and keep it current.**
+**Phase 1 in progress.** M1 (scaffold) done: single Gradle module `:app`, package-by-feature
+inside `dev.rishabh.dailytracker`. Next: M2 (Compose theme from the design tokens).
+
+### Build & test commands
+
+Java is not on `PATH`; use the JDK bundled with Android Studio:
+
+```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+```
+
+| Task | Command |
+| --- | --- |
+| Debug APK | `./gradlew assembleDebug` |
+| Unit tests | `./gradlew testDebugUnitTest` |
+| Single unit test | `./gradlew testDebugUnitTest --tests '*ClassName.methodName'` |
+| Instrumented tests (device attached) | `./gradlew connectedDebugAndroidTest` |
+| Lint | `./gradlew lintDebug` |
+| Install on device | `./gradlew installDebug` |
+| Clean | `./gradlew clean` |
+
+`adb` lives at `~/Library/Android/sdk/platform-tools/adb` (also not on `PATH`).
+
+### Toolchain (verified against Google Maven / Maven Central on 2026-07-17)
+
+AGP 9.3.0 · Gradle 9.6.1 · Kotlin 2.3.21 · KSP 2.3.10 · Hilt 2.60.1 · Room 2.8.4 ·
+Compose BOM 2026.06.01 · `compileSdk`/`targetSdk` 37 · `minSdk` 34.
+
+Two constraints worth remembering before touching `gradle/libs.versions.toml`:
+
+- **Kotlin is pinned to the 2.3.x line, not the newest 2.4.x.** KSP's latest (2.3.10) is
+  built against kotlin-stdlib 2.3.20 and Hilt 2.60.1 pins kotlin-bom 2.3.21, so Kotlin 2.4
+  would break Room/Hilt annotation processing. Re-check KSP before bumping Kotlin.
+- **AGP 9 has built-in Kotlin.** Do not apply `org.jetbrains.kotlin.android` — it errors
+  ("extension with name 'kotlin' already registered"). Other Kotlin compiler plugins
+  (compose, serialization) and KSP are applied normally. Compiler flags go in
+  `kotlin { compilerOptions { … } }`, never `android.kotlinOptions`.
 
 ## Read these before writing anything
 

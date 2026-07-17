@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose owns the real theming; this is the launch/window theme only.
+         Dark-mode-first per the design system: surface-0 is #0e1013. -->
+    <style name="Theme.DailyTracker" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/surface_0</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>
