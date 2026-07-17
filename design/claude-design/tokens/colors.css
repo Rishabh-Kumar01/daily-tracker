@@ -1,0 +1,40 @@
+:root {
+  /* Neutral dark base (Material 3 tonal surfaces) */
+  --surface-0: #0e1013;          /* app background */
+  --surface-1: #16181d;          /* cards */
+  --surface-2: #1c1f25;          /* raised cards, sheets */
+  --surface-3: #23262e;          /* highest elevation */
+  --on-surface: #e4e6ea;         /* primary text */
+  --on-surface-variant: #a2a8b3; /* secondary text */
+  --on-surface-faint: #6a707c;   /* tertiary text, placeholders */
+  --outline: #3a3e47;            /* borders, dividers */
+  --outline-variant: #262a31;    /* subtle dividers */
+  --scrim: rgba(0, 0, 0, 0.55);  /* behind sheets */
+
+  /* Activity accents — one hue per activity, matched chroma & lightness */
+  --accent-diet:    oklch(0.80 0.14 150); /* green */
+  --accent-workout: oklch(0.80 0.14 55);  /* orange */
+  --accent-study:   oklch(0.80 0.14 250); /* blue */
+  --accent-sleep:   oklch(0.80 0.14 305); /* violet */
+
+  /* Container tints (selected fills, icon chips) */
+  --accent-diet-container:    oklch(0.28 0.05 150);
+  --accent-workout-container: oklch(0.28 0.05 55);
+  --accent-study-container:   oklch(0.28 0.05 250);
+  --accent-sleep-container:   oklch(0.28 0.05 305);
+
+  /* Text/icon color placed ON a solid accent fill */
+  --on-accent: #101216;
+
+  /* Semantic aliases */
+  --surface-card: var(--surface-1);
+  --surface-sheet: var(--surface-2);
+  --text-body: var(--on-surface);
+  --text-secondary: var(--on-surface-variant);
+  --divider: var(--outline-variant);
+
+  /* State layers */
+  --state-hover: rgba(228, 230, 234, 0.06);
+  --state-pressed: rgba(228, 230, 234, 0.10);
+  --disabled-opacity: 0.38;
+}

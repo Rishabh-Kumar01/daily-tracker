@@ -1,0 +1,32 @@
+<!-- @dsCard group="Components" viewport="700x360" name="ItemRow & BrandPickerRow" subtitle="Checkable rows and product picker rows" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="../../ds-loader.js"></script>
+</head><body>
+<div id="root" style="padding:16px"></div>
+<script type="text/plain" id="app-src">
+loadDS('../../').then(NS=>{
+  const {ItemRow,BrandPickerRow}=NS;
+  function Demo(){
+    const [c,setC]=React.useState(true);
+    return <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+      <div style={{background:'var(--surface-1)',borderRadius:'var(--radius-lg)',padding:8}}>
+        <ItemRow name="Chicken breast" value="264 kcal" accent="diet" checked={c} onChange={setC} />
+        <ItemRow name="Bench press 4×8" value="60 kg" accent="workout" />
+        <ItemRow name="Flashcards — Kanji" value="20 min" accent="study" checked />
+        <ItemRow name="Evening walk" value="30 min" accent="sleep" disabled />
+      </div>
+      <div style={{background:'var(--surface-1)',borderRadius:'var(--radius-lg)',padding:8,display:'flex',flexDirection:'column',gap:4}}>
+        <BrandPickerRow brand="Fage" product="Total 0% Greek Yogurt" per100g="per 100g · 54 kcal · 10.3P · 3.0C · 0.2F" />
+        <BrandPickerRow brand="Barilla" product="Spaghetti n.5" per100g="per 100g · 359 kcal · 12.5P · 71.7C · 2.0F" selected />
+        <BrandPickerRow brand="Lindt" product="Excellence 85% Dark" per100g="per 100g · 584 kcal · 9.5P · 19C · 46F" disabled />
+      </div>
+    </div>;
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+}).catch(e=>{document.getElementById('root').textContent='load failed: '+e.message;});
+</script>
+<script>window.addEventListener('DOMContentLoaded',()=>{const s=document.getElementById('app-src');(0,eval)(Babel.transform(s.textContent,{presets:[[Babel.availablePresets.react,{runtime:'classic'}]]}).code)});</script>
+</body></html>

@@ -1,0 +1,26 @@
+:root {
+  --font-ui: 'Roboto', system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', ui-monospace, monospace;
+
+  /* Material 3 type scale (mobile subset) */
+  --type-headline: 500 24px/32px var(--font-ui);       /* screen titles */
+  --type-title-lg: 500 20px/28px var(--font-ui);       /* sheet titles */
+  --type-title: 500 16px/24px var(--font-ui);          /* card/component names */
+  --type-body-lg: 400 16px/24px var(--font-ui);        /* list item names */
+  --type-body: 400 14px/20px var(--font-ui);           /* summaries, descriptions */
+  --type-label: 500 12px/16px var(--font-ui);          /* chips, buttons small */
+  --type-caption: 400 11px/16px var(--font-ui);        /* per-100g lines, hints */
+  --type-numeric: 500 14px/20px var(--font-mono);      /* right-aligned values */
+  --type-numeric-lg: 500 22px/28px var(--font-mono);   /* stepper readout */
+
+  --tracking-label: 0.03em;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-0);
+  color: var(--on-surface);
+  font: var(--type-body);
+}
+a { color: var(--accent-study); text-decoration: none; }
+a:hover { color: oklch(0.88 0.12 250); }

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="styles.css">
+<style>body{margin:0;background:var(--surface-0,#0e1013);}a{color:oklch(0.80 0.14 250);text-decoration:none}a:hover{color:oklch(0.88 0.12 250)}</style>
+</helmet>
+<div style="display:flex;gap:32px;padding:32px;align-items:flex-start;justify-content:center;flex-wrap:wrap;font:var(--type-body)">
+
+  <!-- STATE 1: default list -->
+  <div>
+    <div style="font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--on-surface-faint);margin-bottom:8px">1 · Default list</div>
+    <div style="width:412px;height:860px;border-radius:24px;border:1px solid var(--outline-variant);background:var(--surface-0);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;gap:12px;padding:20px 16px 8px">
+        <span class="material-symbols-rounded" style="font-size:24px;color:var(--on-surface)">arrow_back</span>
+        <span style="font:var(--type-headline);color:var(--on-surface)">Lunch</span>
+      </div>
+      <div style="display:flex;gap:8px;padding:8px 16px 16px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-radius:var(--radius-lg);background:var(--accent-diet-container);color:var(--accent-diet);cursor:pointer">
+          <span class="material-symbols-rounded" style="font-size:22px">search</span>
+          <span style="font:var(--type-label);letter-spacing:var(--tracking-label)">Search</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-radius:var(--radius-lg);background:var(--surface-2);color:var(--on-surface-variant);cursor:pointer">
+          <span class="material-symbols-rounded" style="font-size:22px">barcode_scanner</span>
+          <span style="font:var(--type-label);letter-spacing:var(--tracking-label)">Scan barcode</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-radius:var(--radius-lg);background:var(--surface-2);color:var(--on-surface-variant);cursor:pointer">
+          <span class="material-symbols-rounded" style="font-size:22px">photo_camera</span>
+          <span style="font:var(--type-label);letter-spacing:var(--tracking-label)">Photo of label</span>
+        </div>
+      </div>
+      <div style="font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--on-surface-faint);padding:4px 20px 8px">Frequent</div>
+      <div style="flex:1;overflow:hidden;padding:0 8px;display:flex;flex-direction:column">
+        <sc-for list="{{ defaultRows }}" as="row" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px;border-radius:var(--radius-md);cursor:pointer">
+            <span style="width:22px;height:22px;flex:none;border-radius:var(--radius-xs);border:2px solid {{ row.boxBorder }};background:{{ row.boxBg }};box-sizing:border-box;display:grid;place-items:center;color:var(--on-accent)">
+              <sc-if value="{{ row.checked }}" hint-placeholder-val="{{ false }}"><span class="material-symbols-rounded" style="font-size:16px;font-variation-settings:'FILL' 1,'wght' 600">check</span></sc-if>
+            </span>
+            <span style="font:var(--type-body-lg);flex:1;color:var(--on-surface);text-decoration:{{ row.deco }};text-decoration-color:var(--on-surface-faint)">{{ row.name }}</span>
+            <span style="font:var(--type-numeric);color:var(--text-secondary)">{{ row.value }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--surface-2);border-top:1px solid var(--outline-variant)">
+        <span class="material-symbols-rounded" style="font-size:20px;color:var(--accent-diet)">restaurant</span>
+        <div style="min-width:0;flex:1">
+          <div style="font:var(--type-caption);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--text-secondary)">Lunch so far</div>
+          <div style="font:var(--type-numeric);color:var(--on-surface);white-space:nowrap">386 kcal · 14g P · 62g C · 7g F</div>
+        </div>
+        <div style="height:40px;padding:0 20px;border-radius:var(--radius-full);background:var(--accent-diet);color:var(--on-accent);display:grid;place-items:center;font:var(--type-label);letter-spacing:var(--tracking-label);cursor:pointer">Done</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATE 2: Paneer expanded -->
+  <div>
+    <div style="font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--on-surface-faint);margin-bottom:8px">2 · Paneer expanded</div>
+    <div style="width:412px;height:860px;border-radius:24px;border:1px solid var(--outline-variant);background:var(--surface-0);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;gap:12px;padding:20px 16px 8px">
+        <span class="material-symbols-rounded" style="font-size:24px;color:var(--on-surface)">arrow_back</span>
+        <span style="font:var(--type-headline);color:var(--on-surface)">Lunch</span>
+      </div>
+      <div style="display:flex;gap:8px;padding:8px 16px 16px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-radius:var(--radius-lg);background:var(--accent-diet-container);color:var(--accent-diet)">
+          <span class="material-symbols-rounded" style="font-size:22px">search</span>
+          <span style="font:var(--type-label);letter-spacing:var(--tracking-label)">Search</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-radius:var(--radius-lg);background:var(--surface-2);color:var(--on-surface-variant)">
+          <span class="material-symbols-rounded" style="font-size:22px">barcode_scanner</span>
+          <span style="font:var(--type-label);letter-spacing:var(--tracking-label)">Scan barcode</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-radius:var(--radius-lg);background:var(--surface-2);color:var(--on-surface-variant)">
+          <span class="material-symbols-rounded" style="font-size:22px">photo_camera</span>
+          <span style="font:var(--type-label);letter-spacing:var(--tracking-label)">Photo of label</span>
+        </div>
+      </div>
+      <div style="font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--on-surface-faint);padding:4px 20px 8px">Frequent</div>
+      <div style="flex:1;overflow:hidden;padding:0 8px;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px;border-radius:var(--radius-md);background:var(--surface-2)">
+          <span style="width:22px;height:22px;flex:none;border-radius:var(--radius-xs);border:2px solid var(--outline);box-sizing:border-box"></span>
+          <span style="font:var(--type-body-lg);flex:1;color:var(--on-surface)">Paneer</span>
+          <span style="font:var(--type-numeric);color:var(--text-secondary)">265 kcal</span>
+          <span class="material-symbols-rounded" style="font-size:20px;color:var(--on-surface-faint)">expand_less</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;padding:4px 0 8px 24px">
+          <sc-for list="{{ brandRows }}" as="b" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 12px;border-radius:var(--radius-md);border:1.5px solid transparent;box-sizing:border-box;cursor:pointer">
+              <div style="width:44px;height:44px;flex:none;border-radius:var(--radius-sm);background:repeating-linear-gradient(45deg,var(--surface-3) 0 6px,var(--surface-2) 6px 12px);display:grid;place-items:center">
+                <span style="font:500 9px/1 var(--font-mono);color:var(--on-surface-faint)">IMG</span>
+              </div>
+              <div style="min-width:0;flex:1">
+                <div style="font:var(--type-caption);color:var(--text-secondary);letter-spacing:var(--tracking-label);text-transform:uppercase">{{ b.brand }}</div>
+                <div style="font:var(--type-body-lg);color:var(--on-surface);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.product }}</div>
+                <div style="font:var(--type-caption);color:var(--on-surface-faint);font-family:var(--font-mono)">{{ b.per100g }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-for list="{{ restRows }}" as="row" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px;border-radius:var(--radius-md)">
+            <span style="width:22px;height:22px;flex:none;border-radius:var(--radius-xs);border:2px solid {{ row.boxBorder }};background:{{ row.boxBg }};box-sizing:border-box;display:grid;place-items:center;color:var(--on-accent)">
+              <sc-if value="{{ row.checked }}" hint-placeholder-val="{{ false }}"><span class="material-symbols-rounded" style="font-size:16px;font-variation-settings:'FILL' 1,'wght' 600">check</span></sc-if>
+            </span>
+            <span style="font:var(--type-body-lg);flex:1;color:var(--on-surface);text-decoration:{{ row.deco }};text-decoration-color:var(--on-surface-faint)">{{ row.name }}</span>
+            <span style="font:var(--type-numeric);color:var(--text-secondary)">{{ row.value }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--surface-2);border-top:1px solid var(--outline-variant)">
+        <span class="material-symbols-rounded" style="font-size:20px;color:var(--accent-diet)">restaurant</span>
+        <div style="min-width:0;flex:1">
+          <div style="font:var(--type-caption);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--text-secondary)">Lunch so far</div>
+          <div style="font:var(--type-numeric);color:var(--on-surface);white-space:nowrap">386 kcal · 14g P · 62g C · 7g F</div>
+        </div>
+        <div style="height:40px;padding:0 20px;border-radius:var(--radius-full);background:var(--accent-diet);color:var(--on-accent);display:grid;place-items:center;font:var(--type-label);letter-spacing:var(--tracking-label)">Done</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATE 3: QuantitySheet open -->
+  <div>
+    <div style="font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--on-surface-faint);margin-bottom:8px">3 · QuantitySheet open</div>
+    <div style="width:412px;height:860px;border-radius:24px;border:1px solid var(--outline-variant);background:var(--surface-0);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;gap:12px;padding:20px 16px 8px">
+        <span class="material-symbols-rounded" style="font-size:24px;color:var(--on-surface)">arrow_back</span>
+        <span style="font:var(--type-headline);color:var(--on-surface)">Lunch</span>
+      </div>
+      <div style="font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--on-surface-faint);padding:12px 20px 8px">Frequent</div>
+      <div style="flex:1;overflow:hidden;padding:0 8px;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px">
+          <span style="width:22px;height:22px;flex:none;border-radius:var(--radius-xs);border:2px solid var(--outline);box-sizing:border-box"></span>
+          <span style="font:var(--type-body-lg);flex:1;color:var(--on-surface)">Paneer</span>
+          <span style="font:var(--type-numeric);color:var(--text-secondary)">265 kcal</span>
+          <span class="material-symbols-rounded" style="font-size:20px;color:var(--on-surface-faint)">expand_less</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;padding:4px 0 8px 24px">
+          <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 12px;border-radius:var(--radius-md);border:1.5px solid var(--accent-diet);background:var(--accent-diet-container);box-sizing:border-box">
+            <div style="width:44px;height:44px;flex:none;border-radius:var(--radius-sm);background:repeating-linear-gradient(45deg,var(--surface-3) 0 6px,var(--surface-2) 6px 12px);display:grid;place-items:center">
+              <span style="font:500 9px/1 var(--font-mono);color:var(--on-surface-faint)">IMG</span>
+            </div>
+            <div style="min-width:0;flex:1">
+              <div style="font:var(--type-caption);color:var(--accent-diet);letter-spacing:var(--tracking-label);text-transform:uppercase">Amul</div>
+              <div style="font:var(--type-body-lg);color:var(--on-surface)">Malai Paneer</div>
+              <div style="font:var(--type-caption);color:var(--on-surface-faint);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">per 100g · 296 kcal · 18.5P · 5.4C · 22.7F</div>
+            </div>
+            <span class="material-symbols-rounded" style="font-size:20px;color:var(--accent-diet)">check_circle</span>
+          </div>
+        </div>
+      </div>
+      <div style="position:absolute;inset:0;background:var(--scrim)"></div>
+      <div style="position:absolute;left:0;right:0;bottom:0;background:var(--surface-sheet);border-radius:var(--radius-xl) var(--radius-xl) 0 0;box-shadow:var(--shadow-sheet);padding:8px 16px 16px;box-sizing:border-box">
+        <div style="width:32px;height:4px;border-radius:var(--radius-full);background:var(--outline);margin:0 auto 12px"></div>
+        <div style="font:var(--type-caption);color:var(--text-secondary);letter-spacing:var(--tracking-label);text-transform:uppercase">Amul</div>
+        <div style="font:var(--type-title-lg);color:var(--on-surface);margin-bottom:16px">Malai Paneer</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:16px">
+          <button onClick="{{ dec }}" aria-label="less" style="width:48px;height:48px;border-radius:var(--radius-full);border:none;background:var(--surface-3);color:var(--on-surface);display:grid;place-items:center;cursor:pointer">
+            <span class="material-symbols-rounded" style="font-size:22px">remove</span>
+          </button>
+          <div style="text-align:center;min-width:88px">
+            <span style="font:var(--type-numeric-lg);color:{{ gramsColor }}">{{ grams }}</span>
+            <span style="font:var(--type-body);color:var(--text-secondary)"> g</span>
+          </div>
+          <button onClick="{{ inc }}" aria-label="more" style="width:48px;height:48px;border-radius:var(--radius-full);border:none;background:var(--surface-3);color:var(--on-surface);display:grid;place-items:center;cursor:pointer">
+            <span class="material-symbols-rounded" style="font-size:22px">add</span>
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+          <div style="background:var(--surface-3);border-radius:var(--radius-md);padding:8px;text-align:center">
+            <div style="font:var(--type-numeric);color:var(--accent-diet)">{{ kcal }}</div>
+            <div style="font:var(--type-caption);color:var(--on-surface-faint)">kcal</div>
+          </div>
+          <div style="background:var(--surface-3);border-radius:var(--radius-md);padding:8px;text-align:center">
+            <div style="font:var(--type-numeric);color:var(--on-surface)">{{ protein }}</div>
+            <div style="font:var(--type-caption);color:var(--on-surface-faint)">protein</div>
+          </div>
+          <div style="background:var(--surface-3);border-radius:var(--radius-md);padding:8px;text-align:center">
+            <div style="font:var(--type-numeric);color:var(--on-surface)">{{ carbs }}</div>
+            <div style="font:var(--type-caption);color:var(--on-surface-faint)">carbs</div>
+          </div>
+          <div style="background:var(--surface-3);border-radius:var(--radius-md);padding:8px;text-align:center">
+            <div style="font:var(--type-numeric);color:var(--on-surface)">{{ fat }}</div>
+            <div style="font:var(--type-caption);color:var(--on-surface-faint)">fat</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <button style="flex:none;height:48px;padding:0 20px;border-radius:var(--radius-full);border:1px solid var(--outline);background:transparent;color:var(--on-surface);font:var(--type-label);letter-spacing:var(--tracking-label);cursor:pointer">Cancel</button>
+          <button style="flex:1;height:48px;border-radius:var(--radius-full);border:none;background:var(--accent-diet);color:var(--on-accent);font:var(--type-label);letter-spacing:var(--tracking-label);cursor:pointer">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1420, &quot;height&quot;: 940}}">
+class Component extends DCLogic {
+  state = { grams: 100 };
+  renderVals() {
+    const per100 = { kcal: 296, p: 18.5, c: 5.4, f: 22.7 }; // Amul Malai Paneer
+    const g = this.state.grams, k = g / 100;
+    const fmt = (n) => (n % 1 === 0 ? String(n) : n.toFixed(1));
+    const foods = [
+      { name: 'Paneer', value: '265 kcal', checked: false },
+      { name: 'Dal', value: '180 kcal', checked: true },
+      { name: 'Rice', value: '206 kcal', checked: true },
+      { name: 'Roti', value: '297 kcal', checked: false },
+      { name: 'Curd', value: '98 kcal', checked: false },
+    ].map(f => ({
+      ...f,
+      boxBorder: f.checked ? 'var(--accent-diet)' : 'var(--outline)',
+      boxBg: f.checked ? 'var(--accent-diet)' : 'transparent',
+      deco: f.checked ? 'line-through' : 'none',
+    }));
+    return {
+      defaultRows: foods,
+      restRows: foods.slice(1),
+      brandRows: [
+        { brand: 'Amul', product: 'Malai Paneer', per100g: 'per 100g · 296 kcal · 18.5P · 5.4C · 22.7F' },
+        { brand: 'Mother Dairy', product: 'Paneer', per100g: 'per 100g · 265 kcal · 18.9P · 3.3C · 20.0F' },
+        { brand: 'iD Fresh', product: 'Paneer', per100g: 'per 100g · 257 kcal · 17.7P · 4.5C · 19.2F' },
+      ],
+      grams: g,
+      gramsColor: g !== 100 ? 'var(--accent-diet)' : 'var(--on-surface)',
+      inc: () => this.setState(s => ({ grams: s.grams + 10 })),
+      dec: () => this.setState(s => ({ grams: Math.max(0, s.grams - 10) })),
+      kcal: String(Math.round(per100.kcal * k)),
+      protein: fmt(per100.p * k) + 'g',
+      carbs: fmt(per100.c * k) + 'g',
+      fat: fmt(per100.f * k) + 'g',
+    };
+  }
+}
+</script>
+</body>
+</html>

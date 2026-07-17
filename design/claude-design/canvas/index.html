@@ -1,0 +1,69 @@
+<!-- @dsCard group="Canvas" viewport="1240x1220" name="Components × states" subtitle="All five components in default / selected / disabled" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Daily Tracker — components × states</title>
+<link rel="stylesheet" href="../styles.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="../ds-loader.js"></script>
+</head><body>
+<div id="root"></div>
+<script type="text/plain" id="app-src">
+loadDS('../').then(NS=>{
+const {ActivityCard,ItemRow,BrandPickerRow,QuantitySheet,ConfirmSheet}=NS;
+const colHead={font:'var(--type-label)',letterSpacing:'var(--tracking-label)',textTransform:'uppercase',color:'var(--on-surface-faint)',textAlign:'center',paddingBottom:8};
+const rowLabel={font:'var(--type-title)',color:'var(--on-surface)',gridColumn:'1 / -1',margin:'20px 0 8px',display:'flex',alignItems:'baseline',gap:12};
+const rowSub={font:'var(--type-caption)',fontFamily:'var(--font-mono)',color:'var(--on-surface-faint)'};
+function Row({name,sub,children}){
+  return <React.Fragment>
+    <div style={rowLabel}>{name}<span style={rowSub}>{sub}</span></div>
+    {children}
+  </React.Fragment>;
+}
+function Cell({children,bottom}){
+  return <div style={{background:'var(--surface-0)',border:'1px solid var(--outline-variant)',borderRadius:'var(--radius-lg)',padding:bottom?'16px 12px 0':'12px',display:'flex',flexDirection:'column',justifyContent:bottom?'flex-end':'center',overflow:'hidden'}}>{children}</div>;
+}
+function App(){
+  const [checked,setChecked]=React.useState(false);
+  return <div style={{maxWidth:1200,margin:'0 auto',padding:'24px 20px 40px'}}>
+    <div style={{font:'var(--type-headline)',color:'var(--on-surface)'}}>Daily Tracker</div>
+    <div style={{font:'var(--type-body)',color:'var(--text-secondary)',marginBottom:16}}>Component states — dark, Material 3, one accent per activity</div>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+      <div style={colHead}>Default</div><div style={colHead}>Selected</div><div style={colHead}>Disabled</div>
+
+      <Row name="ActivityCard" sub="icon · name · today summary">
+        <Cell><ActivityCard activity="diet" summary="1,840 kcal · 132g protein" /></Cell>
+        <Cell><ActivityCard activity="diet" summary="1,840 kcal · 132g protein" selected /></Cell>
+        <Cell><ActivityCard activity="diet" summary="Nothing logged yet" disabled /></Cell>
+      </Row>
+
+      <Row name="ItemRow" sub="checkbox · name · right value">
+        <Cell><ItemRow name="Chicken breast" value="264 kcal" accent="diet" checked={checked} onChange={setChecked} /></Cell>
+        <Cell><ItemRow name="Chicken breast" value="264 kcal" accent="diet" checked /></Cell>
+        <Cell><ItemRow name="Chicken breast" value="264 kcal" accent="diet" disabled /></Cell>
+      </Row>
+
+      <Row name="BrandPickerRow" sub="thumbnail · brand + product · per-100g">
+        <Cell><BrandPickerRow brand="Fage" product="Total 0% Greek Yogurt" per100g="per 100g · 54 kcal · 10.3P · 3.0C · 0.2F" /></Cell>
+        <Cell><BrandPickerRow brand="Fage" product="Total 0% Greek Yogurt" per100g="per 100g · 54 kcal · 10.3P · 3.0C · 0.2F" selected /></Cell>
+        <Cell><BrandPickerRow brand="Fage" product="Total 0% Greek Yogurt" per100g="per 100g · 54 kcal · 10.3P · 3.0C · 0.2F" disabled /></Cell>
+      </Row>
+
+      <Row name="QuantitySheet" sub="grams stepper · live macro readout">
+        <Cell bottom><QuantitySheet brand="Fage" product="Total 0% Greek Yogurt" per100g={{kcal:54,protein:10.3,carbs:3.0,fat:0.2}} /></Cell>
+        <Cell bottom><QuantitySheet brand="Fage" product="Total 0% Greek Yogurt" per100g={{kcal:54,protein:10.3,carbs:3.0,fat:0.2}} initialGrams={150} edited /></Cell>
+        <Cell bottom><QuantitySheet brand="Fage" product="Total 0% Greek Yogurt" per100g={{kcal:54,protein:10.3,carbs:3.0,fat:0.2}} disabled /></Cell>
+      </Row>
+
+      <Row name="ConfirmSheet" sub="title · editable fields · confirm / cancel">
+        <Cell bottom><ConfirmSheet title="Log workout" accent="workout" fields={[{label:'Exercise',value:'Bench press'},{label:'Sets × reps',value:'4 × 8'},{label:'Weight',value:'60',suffix:'kg'}]} /></Cell>
+        <Cell bottom><ConfirmSheet title="Log workout" accent="workout" focusedField={2} fields={[{label:'Exercise',value:'Bench press'},{label:'Sets × reps',value:'4 × 8'},{label:'Weight',value:'62.5',suffix:'kg'}]} /></Cell>
+        <Cell bottom><ConfirmSheet title="Log workout" accent="workout" disabled fields={[{label:'Exercise',value:'Bench press'},{label:'Sets × reps',value:'4 × 8'},{label:'Weight',value:'60',suffix:'kg'}]} /></Cell>
+      </Row>
+    </div>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+}).catch(e=>{document.getElementById('root').textContent='load failed: '+e.message;});
+</script>
+<script>window.addEventListener('DOMContentLoaded',()=>{const s=document.getElementById('app-src');(0,eval)(Babel.transform(s.textContent,{presets:[[Babel.availablePresets.react,{runtime:'classic'}]]}).code)});</script>
+</body></html>

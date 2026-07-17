@@ -1,0 +1,25 @@
+<!-- @dsCard group="Components" viewport="700x330" name="ActivityCard" subtitle="Icon chip, name, one-line today summary" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="../../ds-loader.js"></script>
+</head><body>
+<div id="root" style="padding:16px"></div>
+<script type="text/plain" id="app-src">
+loadDS('../../').then(NS=>{
+  const {ActivityCard}=NS;
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <ActivityCard activity="diet" summary="1,840 kcal · 132g protein" />
+      <ActivityCard activity="workout" summary="Push day · 45 min · 12 sets" />
+      <ActivityCard activity="study" summary="2h 10m · Linear algebra" selected />
+      <ActivityCard activity="sleep" summary="7h 20m · bed 23:40" selected />
+      <ActivityCard activity="diet" summary="Nothing logged yet" disabled />
+      <ActivityCard activity="workout" summary="Rest day" disabled />
+    </div>
+  );
+}).catch(e=>{document.getElementById('root').textContent='load failed: '+e.message;});
+</script>
+<script>window.addEventListener('DOMContentLoaded',()=>{const s=document.getElementById('app-src');(0,eval)(Babel.transform(s.textContent,{presets:[[Babel.availablePresets.react,{runtime:'classic'}]]}).code)});</script>
+</body></html>
