@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug-only additions. Merged into the debug variant only, so the token gallery
+     cannot reach a release build. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <activity
+            android:name="dev.rishabh.dailytracker.debug.TokenGalleryActivity"
+            android:exported="true"
+            android:label="DT Tokens"
+            android:theme="@style/Theme.DailyTracker">
+            <!-- Own launcher entry so the specimen is reachable on the device without
+                 wiring it into the app's navigation. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
