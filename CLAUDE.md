@@ -29,8 +29,18 @@ Offline-first, single-user Android tracker (Diet, Workout, Study, Sleep, plus us
 - **Verify library versions and API names against current docs before adding dependencies.** The on-device AI surface (LiteRT-LM, MediaPipe) churns; don't trust memory here.
 - **Never claim the sleep lock is unbypassable.** An unstoppable alarm/lock is a bug — the mission alarm falls back to math problems after N failed photo attempts.
 
+## Target device
+
+Sole target: **OnePlus 9 Pro 5G (Snapdragon 888, 12GB RAM, 256GB), Android 14, sideloaded** — no Play Store distribution or policy constraints.
+
+- `minSdk = 34`, target the latest SDK. **No backward-compat code paths, ever.**
+- Local LLM: **Gemma 3n E2B by default; E4B only if benchmarked acceptable on-device.** SD888 thermals are the real limit — heavy AI jobs (PDF ingest, MCQ bank generation) run only while charging.
+- **OxygenOS aggressively kills background apps.** First-run setup must walk the user through excluding the app from battery optimization and enabling auto-launch — WorkManager jobs and the wake alarm depend on it.
+- Alarms: `USE_EXACT_ALARM` (genuine alarm-clock functionality) + full-screen intent over lockscreen + `BOOT_COMPLETED` receiver that reschedules from `sleep_sessions`.
+- Install path: ADB from the dev machine or APKs attached to `gh release`.
+
 ## Tooling
 
 - **Use the `gh` CLI for all GitHub operations** (repo creation, branches, PRs, issues). There is no GitHub MCP server; do not try to add or call one. Authenticated as the repo owner.
-- **UI designs arrive from Claude Design handoff bundles** (HTML/CSS + screenshots + README). Treat the bundle as design intent: match layout, spacing, states, and the named components (ActivityCard, ItemRow, BrandPickerRow, QuantitySheet, ConfirmSheet) — but implement them as Jetpack Compose per the `android-ondevice-ai` skill, not by porting the HTML.
+- **UI designs arrive via the Claude Design MCP (`/design-sync`)** — pull the design system and screens from the "Daily Tracker" Claude Design project and build against those components; approve sync plans before they write. Fallback: handoff bundles (HTML/CSS + screenshots + README) committed under `design/`. Either way, treat designs as intent: match layout, spacing, states, and the named components (ActivityCard, ItemRow, BrandPickerRow, QuantitySheet, ConfirmSheet) — but implement them as Jetpack Compose per the `android-ondevice-ai` skill, not by porting the HTML.
 - Conventional commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`). Small, single-purpose commits; commit after each working increment.
