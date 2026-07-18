@@ -41,3 +41,19 @@ fun iconForKey(key: String?): ImageVector = when (key) {
     "bedtime" -> Icons.Rounded.Bedtime
     else -> Icons.Rounded.Category
 }
+
+/**
+ * Maps a template's stored colour hex to one of the four accents.
+ *
+ * There are only four authored accents, so a user-created activity picks one of them too.
+ * The built-ins store exactly the gamut-mapped accent hexes; anything unrecognised falls
+ * back to Diet rather than inventing a fifth hue. Case-insensitive to tolerate #RRGGBB
+ * written either way.
+ */
+fun accentKeyForColor(colorHex: String?): ActivityKey = when (colorHex?.uppercase()) {
+    "#75D78D" -> ActivityKey.DIET
+    "#FFA460" -> ActivityKey.WORKOUT
+    "#7BC3FF" -> ActivityKey.STUDY
+    "#D3A6FF" -> ActivityKey.SLEEP
+    else -> ActivityKey.DIET
+}
