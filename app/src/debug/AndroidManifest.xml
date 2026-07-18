@@ -7,7 +7,7 @@
         <activity
             android:name="dev.rishabh.dailytracker.debug.TokenGalleryActivity"
             android:exported="true"
-            android:label="DT Tokens"
+            android:label="DT · Tokens"
             android:theme="@style/Theme.DailyTracker">
             <!-- Own launcher entry so the specimen is reachable on the device without
                  wiring it into the app's navigation. -->
@@ -20,7 +20,7 @@
         <activity
             android:name="dev.rishabh.dailytracker.debug.ComponentGalleryActivity"
             android:exported="true"
-            android:label="DT Components"
+            android:label="DT · Components"
             android:theme="@style/Theme.DailyTracker">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
