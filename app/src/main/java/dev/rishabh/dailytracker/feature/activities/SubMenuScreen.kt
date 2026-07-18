@@ -56,6 +56,7 @@ class SubMenuViewModel @Inject constructor(
 @Composable
 fun SubMenuScreen(
     onBack: () -> Unit,
+    onScanClick: (itemId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SubMenuViewModel = hiltViewModel(),
 ) {
@@ -64,7 +65,7 @@ fun SubMenuScreen(
     // belongs to: variant-backed items log through the meal screen, everything else still
     // browses. Workout/Study/Sleep keep the read-only leaf until their own slices land.
     if (detail?.isVariantLogging == true) {
-        MealScreen(onBack = onBack, modifier = modifier)
+        MealScreen(onBack = onBack, onScanClick = onScanClick, modifier = modifier)
     } else {
         SubMenuContent(detail = detail, onBack = onBack, modifier = modifier)
     }

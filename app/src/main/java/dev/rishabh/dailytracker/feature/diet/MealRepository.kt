@@ -168,6 +168,15 @@ class MealRepository @Inject constructor(
     suspend fun removePortion(entryId: String) = logDao.deleteEntry(entryId)
 
     /**
+     * The grouping key a product scanned or typed under this item should get.
+     *
+     * The scanner only knows an item id; the food's name is what ties the resulting product
+     * to the rest of its brand variants.
+     */
+    suspend fun genericNameForItem(itemId: String): String? =
+        templateDao.getItem(itemId)?.let { genericNameOf(it.name) }
+
+    /**
      * Tier-3 manual product creation.
      *
      * Deduped on normalised brand + name so typing "amul / malai paneer" twice updates the
@@ -177,8 +186,13 @@ class MealRepository @Inject constructor(
     suspend fun createManualProduct(
         genericName: String,
         product: ValidatedProduct,
+        barcode: String? = null,
+        source: ProductSource = ProductSource.MANUAL,
     ): String {
-        val existing = productDao.findDuplicate(product.brand, product.productName)
+        // Barcode identifies a packet exactly, so it wins over the fuzzy name match: the
+        // same product scanned twice must never become two rows, whatever it got called.
+        val existing = barcode?.let { productDao.findByBarcode(it) }
+            ?: productDao.findDuplicate(product.brand, product.productName)
         val productId = existing?.productId ?: ids.newId()
         val now = time.nowMillis()
         val row = ProductEntity(
@@ -186,7 +200,10 @@ class MealRepository @Inject constructor(
             genericName = genericName,
             brand = product.brand,
             productName = product.productName,
-            source = ProductSource.MANUAL,
+            // Never drop a barcode already on the row: a product first entered by hand and
+            // later scanned gains one, and re-saving from the sheet must not erase it.
+            barcode = barcode ?: existing?.barcode,
+            source = source,
             createdAt = existing?.createdAt ?: now,
             lastUsedAt = existing?.lastUsedAt,
         )

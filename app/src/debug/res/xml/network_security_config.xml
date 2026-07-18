@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug-only. Cleartext stays blocked everywhere by default, including for the real
+    Open Food Facts lookup, which is HTTPS. The single exception is loopback, so
+    instrumented tests can drive the client against a local MockWebServer.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

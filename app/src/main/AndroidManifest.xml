@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Barcode scanning only, and only while the scanner screen is open. No frame is
+         stored: the analyser reads each one and closes it. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The app is fully usable without a camera; scanning falls back to manual entry. -->
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
     <application
         android:name=".DailyTrackerApplication"
         android:allowBackup="false"

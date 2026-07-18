@@ -8,7 +8,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `dev.rishabh.dailytracker`. Done: M1 scaffold · M2 theme from design tokens · M3 Room
 schema + DAOs + template seeder · M4 component library + generic `FieldRenderer` ·
 M5 Home + template browse navigation · M6 Diet meal flow (log, edit, Tier-3 manual
-products, read-time macros). Next: M7 (barcode → Open Food Facts → My Foods).
+products, read-time macros) · M7 barcode lane (ML Kit scan → Open Food Facts →
+editable confirm → products).
+
+Phase 1's Diet slice is complete. Everything after this is Phase 2 (deterministic
+smart) per the phase order — do not start it without being asked.
+
+One acceptance step is outstanding: M7 was verified on the emulator down to the
+lookup, but decoding a real printed barcode needs the OnePlus. Plug it in and scan a
+packaged product to close it out.
 
 ### Build & test commands
 

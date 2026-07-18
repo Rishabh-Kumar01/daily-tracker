@@ -190,6 +190,66 @@ class MealRepositoryTest {
     }
 
     @Test
+    fun a_scanned_product_keeps_its_barcode_and_source() = runTest {
+        val productId = repository.createManualProduct(
+            genericName = "rice",
+            product = ValidatedProduct("India Gate", "Basmati", mapOf(NutrientKeys.ENERGY_KCAL to 350.0)),
+            barcode = "8901262010207",
+            source = ProductSource.OFF,
+        )
+
+        val saved = checkNotNull(db.productDao().getProduct(productId))
+        assertThat(saved.barcode).isEqualTo("8901262010207")
+        assertThat(saved.source).isEqualTo(ProductSource.OFF)
+        assertThat(item("i2").brands.map { it.productId }).containsExactly(productId)
+    }
+
+    @Test
+    fun rescanning_the_same_barcode_updates_the_product_even_if_renamed() = runTest {
+        val first = repository.createManualProduct(
+            "rice",
+            ValidatedProduct("India Gate", "Basmati", mapOf(NutrientKeys.ENERGY_KCAL to 350.0)),
+            barcode = "8901262010207",
+            source = ProductSource.OFF,
+        )
+        // Same packet, different name from the lookup. The barcode identifies it exactly,
+        // so a fuzzy name match must not be what decides this.
+        val second = repository.createManualProduct(
+            "rice",
+            ValidatedProduct("India Gate", "Basmati Rice 1kg", mapOf(NutrientKeys.ENERGY_KCAL to 345.0)),
+            barcode = "8901262010207",
+            source = ProductSource.OFF,
+        )
+
+        assertThat(second).isEqualTo(first)
+        assertThat(item("i2").brands).hasSize(1)
+        assertThat(item("i2").brands.single().productName).isEqualTo("Basmati Rice 1kg")
+    }
+
+    @Test
+    fun a_barcode_is_not_erased_by_a_later_manual_edit() = runTest {
+        val productId = repository.createManualProduct(
+            "rice",
+            ValidatedProduct("India Gate", "Basmati", mapOf(NutrientKeys.ENERGY_KCAL to 350.0)),
+            barcode = "8901262010207",
+            source = ProductSource.OFF,
+        )
+        // Corrected by hand afterwards, with no barcode in play.
+        repository.createManualProduct(
+            "rice",
+            ValidatedProduct("India Gate", "Basmati", mapOf(NutrientKeys.ENERGY_KCAL to 348.0)),
+        )
+
+        assertThat(db.productDao().getProduct(productId)?.barcode).isEqualTo("8901262010207")
+    }
+
+    @Test
+    fun generic_name_for_an_item_is_its_food_name_normalised() = runTest {
+        assertThat(repository.genericNameForItem("i1")).isEqualTo("paneer")
+        assertThat(repository.genericNameForItem("nope")).isNull()
+    }
+
+    @Test
     fun saving_the_same_brand_twice_updates_it_rather_than_duplicating() = runTest {
         val first = repository.createManualProduct(
             "rice",

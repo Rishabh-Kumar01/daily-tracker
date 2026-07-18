@@ -83,6 +83,7 @@ import dev.rishabh.dailytracker.core.nutrition.macroSummaryLine
 @Composable
 fun MealScreen(
     onBack: () -> Unit,
+    onScanClick: (itemId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MealViewModel = hiltViewModel(),
 ) {
@@ -93,6 +94,7 @@ fun MealScreen(
         onItemClick = viewModel::onItemClick,
         onBrandClick = viewModel::onBrandClick,
         onAddBrandClick = viewModel::onAddBrandClick,
+        onScanClick = onScanClick,
         onToggleSearch = viewModel::onToggleSearch,
         onQueryChange = viewModel::onQueryChange,
         onConfirmQuantity = viewModel::onConfirmQuantity,
@@ -111,6 +113,7 @@ internal fun MealContent(
     onItemClick: (MealItem) -> Unit,
     onBrandClick: (itemId: String, productId: String) -> Unit,
     onAddBrandClick: (itemId: String) -> Unit,
+    onScanClick: (itemId: String) -> Unit,
     onToggleSearch: () -> Unit,
     onQueryChange: (String) -> Unit,
     onConfirmQuantity: (itemId: String, productId: String, grams: Double) -> Unit,
@@ -132,7 +135,16 @@ internal fun MealContent(
                 Column(modifier = Modifier.fillMaxSize()) {
                     BackTopBar(title = detail?.name ?: "", onBack = onBack)
 
-                    ActionRow(accent = accent, searchOpen = state.searchOpen, onSearch = onToggleSearch)
+                    ActionRow(
+                        accent = accent,
+                        searchOpen = state.searchOpen,
+                        onSearch = onToggleSearch,
+                        // The design puts Scan at meal level, but a product needs to know
+                        // which food it belongs to, so the tile acts on the expanded food
+                        // and stays disabled until one is open.
+                        scanItemId = state.expandedItemId,
+                        onScan = onScanClick,
+                    )
 
                     if (state.searchOpen) {
                         SearchField(query = state.query, accent = accent, onQueryChange = onQueryChange)
@@ -160,6 +172,7 @@ internal fun MealContent(
                                         accent = accent,
                                         onBrandClick = { productId -> onBrandClick(item.itemId, productId) },
                                         onAddBrandClick = { onAddBrandClick(item.itemId) },
+                                        onScanClick = { onScanClick(item.itemId) },
                                     )
                                 }
                             }
@@ -219,7 +232,13 @@ internal fun MealContent(
  * but are visibly disabled rather than silently doing nothing.
  */
 @Composable
-private fun ActionRow(accent: AccentColors, searchOpen: Boolean, onSearch: () -> Unit) {
+private fun ActionRow(
+    accent: AccentColors,
+    searchOpen: Boolean,
+    onSearch: () -> Unit,
+    scanItemId: String?,
+    onScan: (String) -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -227,7 +246,11 @@ private fun ActionRow(accent: AccentColors, searchOpen: Boolean, onSearch: () ->
         horizontalArrangement = Arrangement.spacedBy(Spacing.sp2),
     ) {
         ActionTile("Search", Icons.Rounded.Search, accent, active = searchOpen, enabled = true, modifier = Modifier.weight(1f), onClick = onSearch)
-        ActionTile("Scan barcode", Icons.Rounded.QrCodeScanner, accent, active = false, enabled = false, modifier = Modifier.weight(1f))
+        ActionTile(
+            "Scan barcode", Icons.Rounded.QrCodeScanner, accent,
+            active = false, enabled = scanItemId != null, modifier = Modifier.weight(1f),
+            onClick = { scanItemId?.let(onScan) },
+        )
         ActionTile("Photo of label", Icons.Rounded.CameraAlt, accent, active = false, enabled = false, modifier = Modifier.weight(1f))
     }
 }
@@ -333,6 +356,7 @@ private fun BrandExpansion(
     accent: AccentColors,
     onBrandClick: (String) -> Unit,
     onAddBrandClick: () -> Unit,
+    onScanClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier.padding(start = Spacing.sp6, top = Spacing.sp1, bottom = Spacing.sp2),
@@ -351,6 +375,9 @@ private fun BrandExpansion(
         // Always available, and on a fresh library it is the entire state: there is no
         // barcode or label lane yet, so typing the figures is the only way in.
         AddBrandRow(empty = item.brands.isEmpty(), accent = accent, onClick = onAddBrandClick)
+        // Tier 1 before Tier 3: scanning is less work and more accurate than typing, so it
+        // sits right beside the manual route rather than being buried at meal level.
+        ExpansionAction("Scan a barcode", Icons.Rounded.QrCodeScanner, accent, onScanClick)
     }
 }
 
@@ -365,18 +392,29 @@ private fun AddBrandRow(empty: Boolean, accent: AccentColors, onClick: () -> Uni
                 modifier = Modifier.padding(horizontal = Spacing.sp3, vertical = Spacing.sp2),
             )
         }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(Radius.md))
-                .clickable(role = Role.Button, onClick = onClick)
-                .padding(horizontal = Spacing.sp3, vertical = Spacing.sp3),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.sp3),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Rounded.Add, contentDescription = null, tint = accent.base, modifier = Modifier.size(20.dp))
-            Text("Add a brand", style = MaterialTheme.typography.bodyLarge, color = accent.base)
-        }
+        ExpansionAction("Add a brand", Icons.Rounded.Add, accent, onClick)
+    }
+}
+
+/** An accent-coloured action row inside a food's expansion. */
+@Composable
+private fun ExpansionAction(
+    label: String,
+    icon: ImageVector,
+    accent: AccentColors,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radius.md))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = Spacing.sp3, vertical = Spacing.sp3),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sp3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = accent.base, modifier = Modifier.size(20.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = accent.base)
     }
 }
 
@@ -499,7 +537,7 @@ private fun MealPreview() {
         MealContent(
             state = MealUiState(detail = previewDetail(), expandedItemId = "1"),
             onBack = {}, onItemClick = {}, onBrandClick = { _, _ -> }, onAddBrandClick = {},
-            onToggleSearch = {}, onQueryChange = {}, onConfirmQuantity = { _, _, _ -> },
+            onScanClick = {}, onToggleSearch = {}, onQueryChange = {}, onConfirmQuantity = { _, _, _ -> },
             onRemovePortion = {}, onManualFieldChange = { _, _ -> }, onConfirmManualProduct = {},
             onDismissSheet = {},
         )

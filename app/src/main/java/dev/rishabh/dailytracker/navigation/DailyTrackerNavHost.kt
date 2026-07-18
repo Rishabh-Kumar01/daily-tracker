@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dev.rishabh.dailytracker.feature.activities.ActivityScreen
 import dev.rishabh.dailytracker.feature.activities.SubMenuScreen
+import dev.rishabh.dailytracker.feature.diet.scan.ScanScreen
 import dev.rishabh.dailytracker.feature.home.HomeScreen
 
 /**
@@ -48,7 +49,17 @@ fun DailyTrackerNavHost(
             route = Routes.SUB_MENU,
             arguments = listOf(navArgument(Routes.ARG_SUB_MENU_ID) { type = NavType.StringType }),
         ) {
-            SubMenuScreen(onBack = { navController.popBackStack() })
+            SubMenuScreen(
+                onBack = { navController.popBackStack() },
+                onScanClick = { itemId -> navController.navigate(Routes.scan(itemId)) },
+            )
+        }
+
+        composable(
+            route = Routes.SCAN,
+            arguments = listOf(navArgument(Routes.ARG_ITEM_ID) { type = NavType.StringType }),
+        ) {
+            ScanScreen(onBack = { navController.popBackStack() })
         }
     }
 }
