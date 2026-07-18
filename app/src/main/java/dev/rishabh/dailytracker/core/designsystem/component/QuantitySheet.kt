@@ -75,6 +75,9 @@ fun QuantitySheet(
     accent: AccentColors = DailyTrackerTheme.accent,
     edited: Boolean = false,
     disabled: Boolean = false,
+    confirmLabel: String = "Add to log",
+    /** Non-null when an existing portion is being edited; renders the unlog action. */
+    onRemove: (() -> Unit)? = null,
     onAdd: (grams: Double) -> Unit = {},
     onCancel: () -> Unit = {},
 ) {
@@ -132,8 +135,11 @@ fun QuantitySheet(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sp3)) {
+            if (onRemove != null) {
+                OutlineButton("Remove", enabled = !disabled, onClick = onRemove)
+            }
             OutlineButton("Cancel", enabled = !disabled, onClick = onCancel)
-            AccentButton("Add to log", accent = accent.base, enabled = !disabled, modifier = Modifier.weight(1f)) {
+            AccentButton(confirmLabel, accent = accent.base, enabled = !disabled, modifier = Modifier.weight(1f)) {
                 onAdd(grams)
             }
         }

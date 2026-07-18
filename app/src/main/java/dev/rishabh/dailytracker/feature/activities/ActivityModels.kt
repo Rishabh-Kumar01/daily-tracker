@@ -42,4 +42,14 @@ data class SubMenuDetail(
     val name: String,
     val accent: ActivityKey,
     val items: List<ItemRowDetail>,
-)
+) {
+    /**
+     * Whether this sub-menu logs the food -> brand -> product pattern, and so gets the meal
+     * screen instead of the browse leaf.
+     *
+     * Decided from the template data rather than by recognising "Diet" by name: any
+     * activity whose items carry variants earns the same screen, which is the whole point
+     * of activities being data.
+     */
+    val isVariantLogging: Boolean get() = items.isNotEmpty() && items.all { it.hasVariants }
+}

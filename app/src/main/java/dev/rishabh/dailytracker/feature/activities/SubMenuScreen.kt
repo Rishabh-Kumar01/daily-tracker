@@ -34,6 +34,7 @@ import dev.rishabh.dailytracker.core.designsystem.Radius
 import dev.rishabh.dailytracker.core.designsystem.Spacing
 import dev.rishabh.dailytracker.core.designsystem.Surface1
 import dev.rishabh.dailytracker.core.designsystem.component.BackTopBar
+import dev.rishabh.dailytracker.feature.diet.MealScreen
 import dev.rishabh.dailytracker.navigation.Routes
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -59,7 +60,14 @@ fun SubMenuScreen(
     viewModel: SubMenuViewModel = hiltViewModel(),
 ) {
     val detail by viewModel.state.collectAsStateWithLifecycle()
-    SubMenuContent(detail = detail, onBack = onBack, modifier = modifier)
+    // Which screen a sub-menu gets is a property of its data, not of which activity it
+    // belongs to: variant-backed items log through the meal screen, everything else still
+    // browses. Workout/Study/Sleep keep the read-only leaf until their own slices land.
+    if (detail?.isVariantLogging == true) {
+        MealScreen(onBack = onBack, modifier = modifier)
+    } else {
+        SubMenuContent(detail = detail, onBack = onBack, modifier = modifier)
+    }
 }
 
 @Composable

@@ -4,8 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-**Phase 1 in progress.** M1 (scaffold) done: single Gradle module `:app`, package-by-feature
-inside `dev.rishabh.dailytracker`. Next: M2 (Compose theme from the design tokens).
+**Phase 1 in progress.** Single Gradle module `:app`, package-by-feature inside
+`dev.rishabh.dailytracker`. Done: M1 scaffold · M2 theme from design tokens · M3 Room
+schema + DAOs + template seeder · M4 component library + generic `FieldRenderer` ·
+M5 Home + template browse navigation · M6 Diet meal flow (log, edit, Tier-3 manual
+products, read-time macros). Next: M7 (barcode → Open Food Facts → My Foods).
 
 ### Build & test commands
 

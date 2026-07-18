@@ -88,6 +88,17 @@ interface ProductDao {
     @Query("SELECT * FROM product_nutrients WHERE product_id IN (:productIds)")
     fun observeNutrientsFor(productIds: List<String>): Flow<List<ProductNutrientEntity>>
 
+    /**
+     * The whole nutrient table.
+     *
+     * The meal screen needs nutrients for an open-ended set of products (every brand of
+     * every food in the meal, plus whatever is already logged). This is a single-user
+     * library of hand-curated foods, so loading it whole is cheaper than fanning out a
+     * per-product Flow and recombining.
+     */
+    @Query("SELECT * FROM product_nutrients")
+    fun observeAllNutrients(): Flow<List<ProductNutrientEntity>>
+
     // --- Writes ---
 
     @Insert(onConflict = OnConflictStrategy.ABORT)

@@ -117,6 +117,57 @@ interface LogDao {
         fieldKey: String,
     ): Flow<List<LoggedQuantity>>
 
+    /**
+     * Every quantity logged against a product for a sub-menu on a day.
+     *
+     * Which value is "the quantity" comes from item_fields.type, not a hardcoded field key,
+     * so this keeps working for any template that follows the variant + quantity pattern.
+     * Entries without a product contribute no nutrients, so they are filtered out here
+     * rather than being carried to the calculator to be dropped.
+     */
+    @Query(
+        """
+        SELECT e.entry_id AS entryId,
+               e.item_id AS itemId,
+               e.variant_ref AS productId,
+               v.field_key AS fieldKey,
+               v.value_number AS grams
+        FROM log_entries e
+        INNER JOIN log_values v ON v.entry_id = e.entry_id
+        INNER JOIN item_fields f ON f.item_id = e.item_id AND f.field_key = v.field_key
+        WHERE e.sub_menu_id = :subMenuId
+          AND e.local_date = :localDate
+          AND f.type = 'quantity'
+          AND e.variant_ref IS NOT NULL
+        """,
+    )
+    fun observeProductQuantitiesForSubMenuDay(
+        subMenuId: String,
+        localDate: String,
+    ): Flow<List<LoggedQuantity>>
+
+    /** The whole-activity equivalent — powers Home's Diet summary. */
+    @Query(
+        """
+        SELECT e.entry_id AS entryId,
+               e.item_id AS itemId,
+               e.variant_ref AS productId,
+               v.field_key AS fieldKey,
+               v.value_number AS grams
+        FROM log_entries e
+        INNER JOIN log_values v ON v.entry_id = e.entry_id
+        INNER JOIN item_fields f ON f.item_id = e.item_id AND f.field_key = v.field_key
+        WHERE e.template_id = :templateId
+          AND e.local_date = :localDate
+          AND f.type = 'quantity'
+          AND e.variant_ref IS NOT NULL
+        """,
+    )
+    fun observeProductQuantitiesForDay(
+        templateId: String,
+        localDate: String,
+    ): Flow<List<LoggedQuantity>>
+
     @Query("SELECT COUNT(*) FROM log_entries WHERE template_id = :templateId AND local_date = :localDate")
     fun observeEntryCountForDay(templateId: String, localDate: String): Flow<Int>
 

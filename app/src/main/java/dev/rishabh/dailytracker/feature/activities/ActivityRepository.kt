@@ -1,10 +1,14 @@
 package dev.rishabh.dailytracker.feature.activities
 
 import dev.rishabh.dailytracker.core.common.TimeSource
+import dev.rishabh.dailytracker.core.db.SummaryMetricTypes
 import dev.rishabh.dailytracker.core.db.dao.LogDao
+import dev.rishabh.dailytracker.core.db.dao.ProductDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
 import dev.rishabh.dailytracker.core.db.entity.ActivityTemplateEntity
 import dev.rishabh.dailytracker.core.designsystem.accentKeyForColor
+import dev.rishabh.dailytracker.core.nutrition.MacroCalculator
+import dev.rishabh.dailytracker.core.nutrition.homeMacroSummary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -24,6 +28,7 @@ import javax.inject.Singleton
 class ActivityRepository @Inject constructor(
     private val templateDao: TemplateDao,
     private val logDao: LogDao,
+    private val productDao: ProductDao,
     private val time: TimeSource,
 ) {
 
@@ -42,23 +47,56 @@ class ActivityRepository @Inject constructor(
 
     private fun homeActivityFlow(template: ActivityTemplateEntity): Flow<HomeActivity> {
         val today = time.today()
-        return logDao.observeEntryCountForDay(template.templateId, today).map { count ->
+        val summary = if (template.tracksCalories) {
+            nutritionSummaryFlow(template.templateId, today)
+        } else {
+            logDao.observeEntryCountForDay(template.templateId, today).map(::summaryFor)
+        }
+        return summary.map { text ->
             HomeActivity(
                 templateId = template.templateId,
                 name = template.name,
                 iconKey = template.icon,
                 accent = accentKeyForColor(template.color),
-                summary = summaryFor(count),
+                summary = text,
             )
         }
     }
 
     /**
+     * Whether this activity's summary is a nutrition total rather than an entry count.
+     *
+     * Read from the template's own summary metric, so an activity the user creates to track
+     * calories gets the same treatment — no name matching on "Diet".
+     */
+    private val ActivityTemplateEntity.tracksCalories: Boolean
+        get() = summaryMetricType == SummaryMetricTypes.SUM_FIELD &&
+            summaryMetricLabel.equals("kcal", ignoreCase = true)
+
+    /**
+     * Day macros for a calorie-tracking activity.
+     *
+     * Recomputed from current product_nutrients on every emission — Home is a read of the
+     * log, never a cache of one.
+     */
+    private fun nutritionSummaryFlow(templateId: String, today: String): Flow<String> =
+        combine(
+            logDao.observeProductQuantitiesForDay(templateId, today),
+            productDao.observeAllNutrients(),
+        ) { quantities, nutrients ->
+            if (quantities.isEmpty()) return@combine summaryFor(0)
+            val totals = MacroCalculator.total(
+                quantities.mapNotNull { q -> q.productId?.let { MacroCalculator.Quantity(it, q.grams) } },
+                nutrients.groupBy { it.productId },
+            )
+            homeMacroSummary(totals)
+        }
+
+    /**
      * Today summary from the log.
      *
-     * Generic and count-based so it works for every activity, built-in or user-created. The
-     * Diet flow (M6) enriches its own summary with kcal once meals are logged; this is the
-     * fallback every activity shares.
+     * Generic and count-based so it works for every activity, built-in or user-created.
+     * Calorie-tracking activities override it with real macros above.
      */
     private fun summaryFor(entryCount: Int): String = when (entryCount) {
         0 -> "Nothing logged yet"
