@@ -4,54 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-**Phase 1 in progress.** Single Gradle module `:app`, package-by-feature inside
-`dev.rishabh.dailytracker`. Done: M1 scaffold · M2 theme from design tokens · M3 Room
-schema + DAOs + template seeder · M4 component library + generic `FieldRenderer` ·
-M5 Home + template browse navigation · M6 Diet meal flow (log, edit, Tier-3 manual
-products, read-time macros) · M7 barcode lane (ML Kit scan → Open Food Facts →
-editable confirm → products).
-
-Phase 1's Diet slice is complete. Everything after this is Phase 2 (deterministic
-smart) per the phase order — do not start it without being asked.
-
-One acceptance step is outstanding: M7 was verified on the emulator down to the
-lookup, but decoding a real printed barcode needs the OnePlus. Plug it in and scan a
-packaged product to close it out.
-
-### Build & test commands
-
-Java is not on `PATH`; use the JDK bundled with Android Studio:
-
-```bash
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-```
-
-| Task | Command |
-| --- | --- |
-| Debug APK | `./gradlew assembleDebug` |
-| Unit tests | `./gradlew testDebugUnitTest` |
-| Single unit test | `./gradlew testDebugUnitTest --tests '*ClassName.methodName'` |
-| Instrumented tests (device attached) | `./gradlew connectedDebugAndroidTest` |
-| Lint | `./gradlew lintDebug` |
-| Install on device | `./gradlew installDebug` |
-| Clean | `./gradlew clean` |
-
-`adb` lives at `~/Library/Android/sdk/platform-tools/adb` (also not on `PATH`).
-
-### Toolchain (verified against Google Maven / Maven Central on 2026-07-17)
-
-AGP 9.3.0 · Gradle 9.6.1 · Kotlin 2.3.21 · KSP 2.3.10 · Hilt 2.60.1 · Room 2.8.4 ·
-Compose BOM 2026.06.01 · `compileSdk`/`targetSdk` 37 · `minSdk` 34.
-
-Two constraints worth remembering before touching `gradle/libs.versions.toml`:
-
-- **Kotlin is pinned to the 2.3.x line, not the newest 2.4.x.** KSP's latest (2.3.10) is
-  built against kotlin-stdlib 2.3.20 and Hilt 2.60.1 pins kotlin-bom 2.3.21, so Kotlin 2.4
-  would break Room/Hilt annotation processing. Re-check KSP before bumping Kotlin.
-- **AGP 9 has built-in Kotlin.** Do not apply `org.jetbrains.kotlin.android` — it errors
-  ("extension with name 'kotlin' already registered"). Other Kotlin compiler plugins
-  (compose, serialization) and KSP are applied normally. Compiler flags go in
-  `kotlin { compilerOptions { … } }`, never `android.kotlinOptions`.
+Kotlin/Compose Android project, scaffolded and building. Sole module is `app`. Build/test entry points: `./gradlew assembleDebug` (build), `./gradlew installDebug` (build + install to connected device), `./gradlew test` (unit), `./gradlew connectedAndroidTest` (instrumented — needs a device/emulator), `./gradlew test --tests '*ClassName.methodName'` (single test). Launch on device: `adb -s <device-id> shell am start -n dev.rishabh.dailytracker/.MainActivity`.
 
 ## Read these before writing anything
 
@@ -59,8 +12,14 @@ Two skills hold the authoritative design. They are not background reading; they 
 
 - **`daily-tracker-architecture`** — WHAT to build. Core principles, the closed field-type vocabulary, template hierarchy, build phases, settled product decisions. Its references: `references/database-schema.md` (read before any Room/DAO/migration/query work) and `references/ai-pipelines.md` (read before any AI, nutrition, study, or sleep work).
 - **`android-ondevice-ai`** — HOW to build it in Kotlin/Compose. Module layout, stack, the dynamic field renderer, LiteRT-LM lifecycle, WorkManager AI jobs, alarm/lock services, testing conventions.
+- **`PHASE-2A-DIET.md`** (repo root) — the current milestone plan (M8–M11): completing the Diet module into a daily driver. Consult it for all Diet-completion work.
 
 Extend those schemas; do not invent parallel ones. Follow the Phase 1→4 build order defined there.
+
+## Progress
+
+- **Phase 1 (M1–M7): complete**, committed, and verified on-device — scaffold, Compose theme from design tokens, full Room data layer + seeder, component library + generic FieldRenderer, Home + template navigation, Diet meal flow with read-time macros, and the barcode lane via Open Food Facts.
+- **Phase 2a (M8–M11): in progress** — see PHASE-2A-DIET.md.
 
 ## The shape of the app, in one paragraph
 
