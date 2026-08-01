@@ -9,11 +9,15 @@ import dev.rishabh.dailytracker.feature.diet.ManualProductInput
 import dev.rishabh.dailytracker.feature.diet.ProductValidation
 import dev.rishabh.dailytracker.feature.diet.validateManualProduct
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -25,55 +29,85 @@ class MyFoodsViewModel @Inject constructor(
     private val repository: ProductLibraryRepository,
 ) : ViewModel() {
 
-    private val query = MutableStateFlow("")
-    private val filter = MutableStateFlow(LibraryFilter.ALL)
-    private val edit = MutableStateFlow<EditSheet?>(null)
+    /** Everything the UI drives directly; the product list is derived from [LocalState.query]. */
+    private data class LocalState(
+        val query: String = "",
+        val filter: LibraryFilter = LibraryFilter.ALL,
+        val edit: EditSheet? = null,
+        val pendingDelete: ProductCard? = null,
+        val toast: String? = null,
+    )
 
-    private val products = query.flatMapLatest { repository.observeLibrary(it) }
+    private val local = MutableStateFlow(LocalState())
+    private var toastJob: Job? = null
+
+    private val products = local
+        .map { it.query }
+        .distinctUntilChanged()
+        .flatMapLatest { repository.observeLibrary(it) }
 
     val state: StateFlow<MyFoodsUiState> =
-        combine(query, filter, products, edit) { q, f, list, e ->
+        combine(local, products) { l, list ->
             MyFoodsUiState(
-                query = q,
-                filter = f,
-                products = list.filter { f.matches(it) },
+                query = l.query,
+                filter = l.filter,
+                products = list.filter { l.filter.matches(it) },
                 loading = false,
-                edit = e,
+                edit = l.edit,
+                pendingDelete = l.pendingDelete,
+                toast = l.toast,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MyFoodsUiState())
 
-    fun onQueryChange(value: String) = query.update { value }
+    fun onQueryChange(value: String) = local.update { it.copy(query = value) }
 
-    fun onFilterChange(value: LibraryFilter) = filter.update { value }
+    fun onFilterChange(value: LibraryFilter) = local.update { it.copy(filter = value) }
 
-    /** Opens the edit sheet prefilled from the product's current read-time values. */
-    fun onEdit(card: ProductCard) {
-        edit.value = EditSheet(productId = card.productId, input = card.toInput())
+    // --- Edit ---
+
+    fun onEdit(card: ProductCard) = local.update { it.copy(edit = EditSheet(card.productId, card.toInput())) }
+
+    fun onEditFieldChange(index: Int, value: String) = local.update {
+        it.copy(edit = it.edit?.copy(input = it.edit.input.withFieldAt(index, value), error = null))
     }
 
-    fun onEditFieldChange(index: Int, value: String) {
-        edit.update { it?.copy(input = it.input.withFieldAt(index, value), error = null) }
-    }
+    fun onDismissEdit() = local.update { it.copy(edit = null) }
 
-    fun onDismissEdit() = edit.update { null }
-
-    /** Validates the edit, then upserts it onto the same row — a correction, not a new food. */
     fun onSaveEdit() {
-        val sheet = edit.value ?: return
+        val sheet = local.value.edit ?: return
         when (val result = validateManualProduct(sheet.input)) {
-            is ProductValidation.Invalid -> edit.update { it?.copy(error = result.message) }
+            is ProductValidation.Invalid -> local.update { it.copy(edit = it.edit?.copy(error = result.message)) }
             is ProductValidation.Valid -> viewModelScope.launch {
                 repository.updateProduct(sheet.productId, result.product)
-                edit.update { null }
+                local.update { it.copy(edit = null) }
             }
         }
     }
 
-    /** Soft-delete: the row leaves the list (and every picker) but stays in logged history. */
-    fun onArchive(productId: String) {
-        viewModelScope.launch { repository.archive(productId) }
-        // If the archived product was open for editing, close the now-stale sheet.
-        edit.update { if (it?.productId == productId) null else it }
+    // --- Delete (soft-delete/archive), with confirm before and a toast after ---
+
+    /** Deleting is destructive, so the icon only opens a confirmation — it never archives directly. */
+    fun onDeleteClick(card: ProductCard) = local.update { it.copy(pendingDelete = card) }
+
+    fun onCancelDelete() = local.update { it.copy(pendingDelete = null) }
+
+    fun onConfirmDelete() {
+        val card = local.value.pendingDelete ?: return
+        viewModelScope.launch {
+            repository.archive(card.productId)
+            local.update { it.copy(pendingDelete = null, toast = "Deleted ${card.name}") }
+            toastJob?.cancel()
+            toastJob = launch {
+                delay(TOAST_MS)
+                local.update { it.copy(toast = null) }
+            }
+        }
+    }
+
+    fun onToastShown() = local.update { it.copy(toast = null) }
+
+    private companion object {
+        const val TOAST_MS = 2500L
     }
 }
 

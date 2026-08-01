@@ -43,6 +43,10 @@ val OutlineVariant = Color(0xFF262A31)
 /** --scrim: rgba(0, 0, 0, 0.55), behind sheets */
 val Scrim = Color(0x8C000000)
 
+/** Destructive actions (delete/archive). The one non-accent signal colour in the palette. */
+val Danger = Color(0xFFE5646B)
+val DangerContainer = Color(0xFF3A1A1E)
+
 /** --on-accent: text/icons placed ON a solid accent fill */
 val OnAccent = Color(0xFF101216)
 

@@ -17,7 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Inventory2
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,6 +36,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.draw.clip
 import dev.rishabh.dailytracker.core.designsystem.AccentColors
 import dev.rishabh.dailytracker.core.designsystem.DailyTrackerTheme
+import dev.rishabh.dailytracker.core.designsystem.Danger
+import dev.rishabh.dailytracker.core.designsystem.DangerContainer
 import dev.rishabh.dailytracker.core.designsystem.FontMono
 import dev.rishabh.dailytracker.core.designsystem.OnAccent
 import dev.rishabh.dailytracker.core.designsystem.OnSurface
@@ -65,7 +67,9 @@ fun MyFoodsScreen(
         onQueryChange = viewModel::onQueryChange,
         onFilterChange = viewModel::onFilterChange,
         onEdit = viewModel::onEdit,
-        onArchive = viewModel::onArchive,
+        onDeleteClick = viewModel::onDeleteClick,
+        onConfirmDelete = viewModel::onConfirmDelete,
+        onCancelDelete = viewModel::onCancelDelete,
         onEditFieldChange = viewModel::onEditFieldChange,
         onSaveEdit = viewModel::onSaveEdit,
         onDismissEdit = viewModel::onDismissEdit,
@@ -80,7 +84,9 @@ internal fun MyFoodsContent(
     onQueryChange: (String) -> Unit,
     onFilterChange: (LibraryFilter) -> Unit,
     onEdit: (ProductCard) -> Unit,
-    onArchive: (String) -> Unit,
+    onDeleteClick: (ProductCard) -> Unit,
+    onConfirmDelete: () -> Unit,
+    onCancelDelete: () -> Unit,
     onEditFieldChange: (Int, String) -> Unit,
     onSaveEdit: () -> Unit,
     onDismissEdit: () -> Unit,
@@ -111,9 +117,8 @@ internal fun MyFoodsContent(
                         items(state.products, key = { it.productId }) { card ->
                             ProductRow(
                                 card = card,
-                                accent = accent,
                                 onClick = { onEdit(card) },
-                                onArchive = { onArchive(card.productId) },
+                                onDelete = { onDeleteClick(card) },
                             )
                         }
                     }
@@ -132,17 +137,98 @@ internal fun MyFoodsContent(
                     EditSheetContent(edit, accent, onEditFieldChange, onSaveEdit, onDismissEdit)
                 }
             }
+
+            val pending = state.pendingDelete
+            if (pending != null) {
+                DeleteConfirmDialog(
+                    name = pending.name,
+                    onConfirm = onConfirmDelete,
+                    onCancel = onCancelDelete,
+                )
+            }
+
+            if (state.toast != null) {
+                Toast(text = state.toast, modifier = Modifier.align(Alignment.BottomCenter))
+            }
         }
     }
 }
 
-/** One product: brand/name + mono macro line, tap to edit, trailing archive. */
+/** Destructive confirmation: a centred card over the scrim, with the delete action in red. */
+@Composable
+private fun DeleteConfirmDialog(name: String, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Scrim)
+            .clickable(role = Role.Button, onClick = onCancel),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(Spacing.sp6)
+                .clip(RoundedCornerShape(Radius.md))
+                .background(Surface3)
+                // Swallow taps so a press inside the card doesn't dismiss via the scrim.
+                .clickable(enabled = false) {}
+                .padding(Spacing.sp5),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sp3),
+        ) {
+            Text("Delete “$name”?", style = MaterialTheme.typography.titleMedium, color = OnSurface)
+            Text(
+                "It leaves your foods and every picker. Days you already logged it keep their totals.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = OnSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.sp2),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sp3, Alignment.End),
+            ) {
+                Text(
+                    "Cancel",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = OnSurfaceVariant,
+                    modifier = Modifier
+                        .clip(ShapeFull)
+                        .clickable(role = Role.Button, onClick = onCancel)
+                        .padding(horizontal = Spacing.sp4, vertical = Spacing.sp2),
+                )
+                Text(
+                    "Delete",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = OnAccent,
+                    modifier = Modifier
+                        .clip(ShapeFull)
+                        .background(Danger)
+                        .clickable(role = Role.Button, onClick = onConfirm)
+                        .padding(horizontal = Spacing.sp5, vertical = Spacing.sp2),
+                )
+            }
+        }
+    }
+}
+
+/** Transient bottom confirmation that a delete happened. Auto-cleared by the ViewModel. */
+@Composable
+private fun Toast(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = OnSurface,
+        modifier = modifier
+            .padding(Spacing.sp4)
+            .clip(RoundedCornerShape(Radius.md))
+            .background(Surface3)
+            .padding(horizontal = Spacing.sp4, vertical = Spacing.sp3),
+    )
+}
+
+/** One product: brand/name + mono macro line, tap to edit, trailing delete. */
 @Composable
 private fun ProductRow(
     card: ProductCard,
-    accent: AccentColors,
     onClick: () -> Unit,
-    onArchive: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -177,14 +263,14 @@ private fun ProductRow(
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(Radius.md))
-                .background(Surface3)
-                .clickable(role = Role.Button, onClick = onArchive),
+                .background(DangerContainer)
+                .clickable(role = Role.Button, onClick = onDelete),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                Icons.Rounded.Inventory2,
-                contentDescription = "Archive ${card.name}",
-                tint = OnSurfaceVariant,
+                Icons.Rounded.DeleteOutline,
+                contentDescription = "Delete ${card.name}",
+                tint = Danger,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -294,7 +380,8 @@ private fun MyFoodsPreview() {
                     ProductCard("2", null, "Boiled egg", true, "per 100g · 155 kcal · 12.6P · 1.1C · 10.6F", dev.rishabh.dailytracker.core.nutrition.NutrientTotals(emptyMap())),
                 ),
             ),
-            onBack = {}, onQueryChange = {}, onFilterChange = {}, onEdit = {}, onArchive = {},
+            onBack = {}, onQueryChange = {}, onFilterChange = {}, onEdit = {},
+            onDeleteClick = {}, onConfirmDelete = {}, onCancelDelete = {},
             onEditFieldChange = { _, _ -> }, onSaveEdit = {}, onDismissEdit = {},
         )
     }

@@ -33,4 +33,8 @@ data class MyFoodsUiState(
     val products: List<ProductCard> = emptyList(),
     val loading: Boolean = true,
     val edit: EditSheet? = null,
+    /** Non-null while the delete-confirmation dialog is asking about this product. */
+    val pendingDelete: ProductCard? = null,
+    /** Transient "Deleted <name>" confirmation, auto-cleared after it shows. */
+    val toast: String? = null,
 )
