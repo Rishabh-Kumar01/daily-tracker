@@ -30,7 +30,7 @@ interface ProductDao {
     @Query(
         """
         SELECT * FROM products
-        WHERE generic_name = :genericName
+        WHERE generic_name = :genericName AND is_archived = 0
         ORDER BY last_used_at DESC, product_name
         """,
     )
@@ -39,7 +39,7 @@ interface ProductDao {
     @Query(
         """
         SELECT * FROM products
-        WHERE generic_name = :genericName
+        WHERE generic_name = :genericName AND is_archived = 0
         ORDER BY last_used_at DESC, product_name
         """,
     )
@@ -61,16 +61,21 @@ interface ProductDao {
     )
     suspend fun findDuplicate(brand: String?, productName: String): ProductEntity?
 
-    /** My Foods, most recently used first. */
-    @Query("SELECT * FROM products ORDER BY last_used_at DESC, product_name")
+    /**
+     * Active products, most recently used first. Archived rows are excluded here so they
+     * leave every picker and the meal-screen grouping; a logged day still resolves an
+     * archived product by id through [getProduct].
+     */
+    @Query("SELECT * FROM products WHERE is_archived = 0 ORDER BY last_used_at DESC, product_name")
     fun observeAllProducts(): Flow<List<ProductEntity>>
 
     @Query(
         """
         SELECT * FROM products
-        WHERE product_name LIKE '%' || :query || '%'
-           OR brand LIKE '%' || :query || '%'
-           OR generic_name LIKE '%' || :query || '%'
+        WHERE is_archived = 0
+          AND (product_name LIKE '%' || :query || '%'
+            OR brand LIKE '%' || :query || '%'
+            OR generic_name LIKE '%' || :query || '%')
         ORDER BY last_used_at DESC, product_name
         """,
     )
@@ -110,9 +115,20 @@ interface ProductDao {
     @Upsert
     suspend fun upsertNutrients(nutrients: List<ProductNutrientEntity>)
 
+    /** Removes a single nutrient — used when an edit blanks a macro that was previously set. */
+    @Query("DELETE FROM product_nutrients WHERE product_id = :productId AND nutrient_key = :key")
+    suspend fun deleteNutrient(productId: String, key: String)
+
     /** Delete a product by ID. Cascades to product_nutrients via the foreign key. */
     @Query("DELETE FROM products WHERE product_id = :productId")
     suspend fun deleteProduct(productId: String)
+
+    /**
+     * Soft-delete toggle. Never [deleteProduct] a logged product — archiving hides it from
+     * pickers and search while keeping historical log entries resolvable.
+     */
+    @Query("UPDATE products SET is_archived = :archived WHERE product_id = :productId")
+    suspend fun setArchived(productId: String, archived: Boolean)
 
     /** Frequency ranking input; called when a product is actually logged. */
     @Query("UPDATE products SET last_used_at = :usedAt WHERE product_id = :productId")

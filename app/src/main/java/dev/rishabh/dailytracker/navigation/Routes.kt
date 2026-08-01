@@ -9,6 +9,9 @@ package dev.rishabh.dailytracker.navigation
 object Routes {
     const val HOME = "home"
 
+    /** The My Foods library — browse, edit, and archive products. */
+    const val MY_FOODS = "myfoods"
+
     const val ARG_TEMPLATE_ID = "templateId"
     const val ARG_SUB_MENU_ID = "subMenuId"
     const val ARG_ITEM_ID = "itemId"

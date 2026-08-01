@@ -63,7 +63,7 @@ import dev.rishabh.dailytracker.core.db.entity.UserProfileEntity
         AiJobEntity::class,
         ProviderQuotaEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -119,6 +119,19 @@ abstract class DailyTrackerDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE generic_food_meta ADD COLUMN serving_unit TEXT")
                 db.execSQL("ALTER TABLE generic_food_meta ADD COLUMN unit_label TEXT")
                 db.execSQL("ALTER TABLE generic_food_meta ADD COLUMN grams_per_unit REAL")
+            }
+        }
+
+        /**
+         * Migration 3 → 4: adds `products.is_archived` for the soft-delete lifecycle.
+         *
+         * Additive, non-null with a 0 default, so every existing product is active. Products
+         * are never hard-deleted — archiving keeps a logged day's product resolvable while
+         * removing it from pickers and search.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE products ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

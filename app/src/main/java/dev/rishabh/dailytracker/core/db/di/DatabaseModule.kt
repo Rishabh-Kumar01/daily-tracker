@@ -30,7 +30,11 @@ object DatabaseModule {
             // No fallbackToDestructiveMigration: this is the user's only copy of their
             // history and there is no cloud backup. A missing migration must fail loudly
             // in development, never silently wipe logs on a real device.
-            .addMigrations(DailyTrackerDatabase.MIGRATION_1_2, DailyTrackerDatabase.MIGRATION_2_3)
+            .addMigrations(
+                DailyTrackerDatabase.MIGRATION_1_2,
+                DailyTrackerDatabase.MIGRATION_2_3,
+                DailyTrackerDatabase.MIGRATION_3_4,
+            )
             .build()
 
     @Provides

@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import dev.rishabh.dailytracker.feature.activities.ActivityScreen
 import dev.rishabh.dailytracker.feature.activities.SubMenuScreen
 import dev.rishabh.dailytracker.feature.diet.scan.ScanScreen
+import dev.rishabh.dailytracker.feature.foods.MyFoodsScreen
 import dev.rishabh.dailytracker.feature.home.HomeScreen
 
 /**
@@ -32,7 +33,12 @@ fun DailyTrackerNavHost(
         composable(Routes.HOME) {
             HomeScreen(
                 onActivityClick = { templateId -> navController.navigate(Routes.activity(templateId)) },
+                onMyFoodsClick = { navController.navigate(Routes.MY_FOODS) },
             )
+        }
+
+        composable(Routes.MY_FOODS) {
+            MyFoodsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(

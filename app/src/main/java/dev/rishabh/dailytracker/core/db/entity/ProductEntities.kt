@@ -59,6 +59,12 @@ data class ProductEntity(
     @ColumnInfo(name = "created_at") val createdAt: Long,
     /** Drives frequency ranking in the meal screen. */
     @ColumnInfo(name = "last_used_at") val lastUsedAt: Long? = null,
+    /**
+     * Soft-delete flag, mirroring the template-tree convention. Log entries reference a
+     * product by id, so a product is never hard-deleted — archiving hides it from pickers
+     * and search while keeping it resolvable for the days that already logged it.
+     */
+    @ColumnInfo(name = "is_archived") val isArchived: Boolean = false,
 ) {
     companion object {
         const val BASIS_PER_100G = "per_100g"

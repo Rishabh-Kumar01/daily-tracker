@@ -1,12 +1,15 @@
 package dev.rishabh.dailytracker.feature.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -14,6 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -21,6 +26,7 @@ import dev.rishabh.dailytracker.core.designsystem.ActivityKey
 import dev.rishabh.dailytracker.core.designsystem.DailyTrackerTheme
 import dev.rishabh.dailytracker.core.designsystem.OnSurface
 import dev.rishabh.dailytracker.core.designsystem.OnSurfaceVariant
+import dev.rishabh.dailytracker.core.designsystem.Radius
 import dev.rishabh.dailytracker.core.designsystem.Spacing
 import dev.rishabh.dailytracker.core.designsystem.component.ActivityCard
 import dev.rishabh.dailytracker.core.designsystem.iconForKey
@@ -32,17 +38,19 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     onActivityClick: (templateId: String) -> Unit,
+    onMyFoodsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    HomeContent(state = state, onActivityClick = onActivityClick, modifier = modifier)
+    HomeContent(state = state, onActivityClick = onActivityClick, onMyFoodsClick = onMyFoodsClick, modifier = modifier)
 }
 
 @Composable
 private fun HomeContent(
     state: HomeUiState,
     onActivityClick: (String) -> Unit,
+    onMyFoodsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -77,6 +85,18 @@ private fun HomeContent(
                         Text("Nothing set up yet", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceVariant)
                     }
                 }
+            }
+            item {
+                Text(
+                    "My Foods →",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = OnSurfaceVariant,
+                    modifier = Modifier
+                        .padding(top = Spacing.sp2)
+                        .clip(RoundedCornerShape(Radius.md))
+                        .clickable(role = Role.Button, onClick = onMyFoodsClick)
+                        .padding(horizontal = Spacing.sp3, vertical = Spacing.sp3),
+                )
             }
         }
     }
