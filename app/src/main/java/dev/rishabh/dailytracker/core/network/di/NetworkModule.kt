@@ -5,6 +5,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.rishabh.dailytracker.core.network.OpenFoodFactsClient
+import dev.rishabh.dailytracker.core.network.UsdaClient
 import kotlinx.serialization.json.Json
 import okhttp3.Call
 import okhttp3.OkHttpClient
@@ -34,6 +35,11 @@ object NetworkModule {
     @Singleton
     fun provideOpenFoodFactsClient(callFactory: Call.Factory, json: Json): OpenFoodFactsClient =
         OpenFoodFactsClient(callFactory, json)
+
+    @Provides
+    @Singleton
+    fun provideUsdaClient(callFactory: Call.Factory, json: Json): UsdaClient =
+        UsdaClient(callFactory, json)
 
     @Provides
     @Singleton

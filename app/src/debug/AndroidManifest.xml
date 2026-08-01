@@ -7,29 +7,25 @@
     <application
         android:networkSecurityConfig="@xml/network_security_config"
         tools:replace="android:networkSecurityConfig">
+        <!--
+            The gallery specimens are exported so they can be launched explicitly from adb,
+            but they carry NO launcher intent-filter: a debug-only tool must never add a
+            home-screen icon that competes with the real app and gets opened by mistake.
+            Launch when needed:
+              adb shell am start -n dev.rishabh.dailytracker/.debug.TokenGalleryActivity
+              adb shell am start -n dev.rishabh.dailytracker/.debug.ComponentGalleryActivity
+        -->
         <activity
             android:name="dev.rishabh.dailytracker.debug.TokenGalleryActivity"
             android:exported="true"
             android:label="DT · Tokens"
-            android:theme="@style/Theme.DailyTracker">
-            <!-- Own launcher entry so the specimen is reachable on the device without
-                 wiring it into the app's navigation. -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.DailyTracker" />
 
         <activity
             android:name="dev.rishabh.dailytracker.debug.ComponentGalleryActivity"
             android:exported="true"
             android:label="DT · Components"
-            android:theme="@style/Theme.DailyTracker">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.DailyTracker" />
     </application>
 
 </manifest>

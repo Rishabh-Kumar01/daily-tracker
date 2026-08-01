@@ -5,6 +5,7 @@ import dev.rishabh.dailytracker.core.common.TimeSource
 import dev.rishabh.dailytracker.core.db.FieldType
 import dev.rishabh.dailytracker.core.db.NutrientKeys
 import dev.rishabh.dailytracker.core.db.ProductSource
+import dev.rishabh.dailytracker.core.db.dao.GenericFoodMetaDao
 import dev.rishabh.dailytracker.core.db.dao.LogDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
@@ -25,10 +26,10 @@ import javax.inject.Singleton
 /**
  * Read + write model for one meal.
  *
- * Reads are a live join of four Flows: the meal's items, the product library, the nutrient
- * table, and what has been logged today. Nothing derived is stored — every emission
- * recomputes macros from current product_nutrients, so editing a product's label fixes
- * every meal that ever referenced it, past included.
+ * Reads are a live join of five Flows: the meal's items, the product library, the nutrient
+ * table, the generic food metadata, and what has been logged today. Nothing derived is stored —
+ * every emission recomputes macros from current product_nutrients, so editing a product's
+ * label fixes every meal that ever referenced it, past included.
  *
  * Writes are per-portion and immediate: each add or edit is its own transaction, so a meal
  * half-entered when the OS kills the app is still a meal half-saved.
@@ -38,6 +39,7 @@ class MealRepository @Inject constructor(
     private val templateDao: TemplateDao,
     private val logDao: LogDao,
     private val productDao: ProductDao,
+    private val genericFoodMetaDao: GenericFoodMetaDao,
     private val ids: IdGenerator,
     private val time: TimeSource,
 ) {
@@ -48,13 +50,23 @@ class MealRepository @Inject constructor(
             templateDao.observeItems(subMenuId),
             productDao.observeAllProducts(),
             productDao.observeAllNutrients(),
+            genericFoodMetaDao.observeAll(),
             logDao.observeProductQuantitiesForSubMenuDay(subMenuId, today),
-        ) { items, products, nutrients, logged ->
+        ) { items, products, nutrients, metaList, logged ->
             val subMenu = templateDao.getSubMenu(subMenuId) ?: return@combine null
             val template = templateDao.getTemplate(subMenu.templateId)
             val fields = templateDao.getFieldsForSubMenu(subMenuId).groupBy { it.itemId }
             val nutrientsByProduct = nutrients.groupBy { it.productId }
             val productsByGeneric = products.groupBy { it.genericName }
+
+            // Index generic_food_meta by product_id for O(1) lookup.
+            val metaByProduct = metaList.associateBy { it.productId }
+            // Index category -> list of product_ids for category-based matching.
+            val productIdsByCategory = metaList
+                .filter { it.category != null }
+                .groupBy { it.category!! }
+                .mapValues { (_, metas) -> metas.map { it.productId }.toSet() }
+
             val loggedByItem = logged.associateBy { it.itemId }
 
             val mealItems = items.map { item ->
@@ -73,6 +85,20 @@ class MealRepository @Inject constructor(
                         ),
                     )
                 }
+
+                // Gather products matching this item:
+                // 1. Exact generic_name match (includes both branded and generic)
+                // 2. Category match (only generic foods with a category)
+                // Generic-first ordering: exact name matches first, then category matches.
+                val exactProducts = productsByGeneric[generic].orEmpty()
+                val categoryProductIds = productIdsByCategory[generic].orEmpty()
+                val allProducts = if (categoryProductIds.isNotEmpty()) {
+                    val categoryProducts = products.filter { it.productId in categoryProductIds }
+                    exactProducts + (categoryProducts - exactProducts.toSet())
+                } else {
+                    exactProducts
+                }
+
                 MealItem(
                     itemId = item.itemId,
                     name = item.name,
@@ -81,8 +107,8 @@ class MealRepository @Inject constructor(
                         .firstOrNull { it.type == FieldType.QUANTITY.wire }?.fieldKey,
                     variantFieldKey = itemFields
                         .firstOrNull { it.type == FieldType.ITEM_VARIANT.wire }?.fieldKey,
-                    brands = productsByGeneric[generic].orEmpty().map { product ->
-                        brandOption(product, nutrientsByProduct[product.productId].orEmpty())
+                    brands = allProducts.map { product ->
+                        brandOption(product, nutrientsByProduct[product.productId].orEmpty(), metaByProduct[product.productId])
                     },
                     logged = portion,
                 )
@@ -237,8 +263,9 @@ internal fun genericNameOf(itemName: String): String = itemName.trim().lowercase
 private fun brandOption(
     product: ProductEntity,
     nutrients: List<ProductNutrientEntity>,
+    meta: dev.rishabh.dailytracker.core.db.entity.GenericFoodMetaEntity?,
 ): BrandOption {
-    // Amounts are already per 100g, so the "per 100g" line is the unscaled totals.
+    val isGeneric = meta != null
     val per100 = NutrientTotals(nutrients.associate { it.nutrientKey to it.amountPer100g })
     return BrandOption(
         productId = product.productId,
@@ -251,5 +278,14 @@ private fun brandOption(
             fat = per100[NutrientKeys.FAT_G],
         ),
         per100gLine = per100gLine(per100),
+        variant = product.variant,
+        isGeneric = isGeneric,
+        isApprox = meta?.isApprox == true,
+        defaultServingG = product.servingSizeG,
+        // Serving unit comes from the generic-food metadata; branded products (no meta)
+        // stay on grams, matching "default to grams unless a serving is known".
+        servingUnit = meta?.servingUnit,
+        unitLabel = meta?.unitLabel,
+        gramsPerUnit = meta?.gramsPerUnit,
     )
 }

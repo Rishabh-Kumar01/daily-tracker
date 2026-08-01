@@ -45,7 +45,7 @@ class MealRepositoryTest {
         ).build()
         ids = FakeIdGenerator()
         time = FakeTimeSource()
-        repository = MealRepository(db.templateDao(), db.logDao(), db.productDao(), ids, time)
+        repository = MealRepository(db.templateDao(), db.logDao(), db.productDao(), db.genericFoodMetaDao(), ids, time)
 
         db.templateDao().insertFullTemplate(
             ActivityTemplateEntity("t1", "Diet", "restaurant", "#75D78D", CreatedBy.SYSTEM, "sum_field", "kcal", 1, false, 0, 1L),

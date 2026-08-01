@@ -60,6 +60,8 @@ enum class ProductSource(override val wire: String) : WireEnum {
     MANUAL("manual"),
     USDA("usda"),
     OFF("off"),
+    /** Seeded from the bundled generic_foods asset. */
+    BUNDLED_GENERIC("bundled_generic"),
 }
 
 /** chapters.ingest_status */
@@ -126,6 +128,12 @@ object NutrientKeys {
     const val CARBS_G = "carbs_g"
     const val FAT_G = "fat_g"
     const val FIBER_G = "fiber_g"
+
+    // Opportunistic micronutrients: populated by the bundled dataset and USDA lookups when
+    // the source carries them cleanly, never required. Same open-set column as the macros.
+    const val IRON_MG = "iron_mg"
+    const val CALCIUM_MG = "calcium_mg"
+    const val VITAMIN_C_MG = "vitamin_c_mg"
 }
 
 /**

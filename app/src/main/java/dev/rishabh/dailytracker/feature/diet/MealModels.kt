@@ -17,6 +17,23 @@ data class BrandOption(
     val productName: String,
     val per100g: Per100g,
     val per100gLine: String,
+    /** Preparation state, e.g. "cooked", "raw", "roasted". Null for branded products. */
+    val variant: String? = null,
+    /** True for bundled generic foods (brand == null, source == BUNDLED_GENERIC). */
+    val isGeneric: Boolean = false,
+    /** True when the value is a typical composite rather than a lab analysis. */
+    val isApprox: Boolean = false,
+    /** Default serving size from the generic food asset. Null for branded products. */
+    val defaultServingG: Double? = null,
+    /**
+     * How this food is logged: "count" | "household" | "grams" (or null → grams). Drives the
+     * QuantitySheet's input unit; the amount is still converted to and stored as grams.
+     */
+    val servingUnit: String? = null,
+    /** The unit noun, e.g. "egg", "katori", "tsp". Null for grams-logged foods. */
+    val unitLabel: String? = null,
+    /** Grams in one [unitLabel]; the input-to-grams conversion factor. */
+    val gramsPerUnit: Double? = null,
 )
 
 /**

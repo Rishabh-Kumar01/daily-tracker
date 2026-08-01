@@ -110,6 +110,10 @@ interface ProductDao {
     @Upsert
     suspend fun upsertNutrients(nutrients: List<ProductNutrientEntity>)
 
+    /** Delete a product by ID. Cascades to product_nutrients via the foreign key. */
+    @Query("DELETE FROM products WHERE product_id = :productId")
+    suspend fun deleteProduct(productId: String)
+
     /** Frequency ranking input; called when a product is actually logged. */
     @Query("UPDATE products SET last_used_at = :usedAt WHERE product_id = :productId")
     suspend fun touch(productId: String, usedAt: Long)

@@ -69,6 +69,9 @@ import dev.rishabh.dailytracker.core.designsystem.component.ConfirmSheet
 import dev.rishabh.dailytracker.core.designsystem.component.ItemRow
 import dev.rishabh.dailytracker.core.designsystem.component.Per100g
 import dev.rishabh.dailytracker.core.designsystem.component.QuantitySheet
+import dev.rishabh.dailytracker.core.designsystem.component.ServingUnit
+import dev.rishabh.dailytracker.core.db.NutrientKeys
+import dev.rishabh.dailytracker.core.network.UsdaFood
 import dev.rishabh.dailytracker.core.nutrition.NutrientTotals
 import dev.rishabh.dailytracker.core.nutrition.kcalLabel
 import dev.rishabh.dailytracker.core.nutrition.macroSummaryLine
@@ -102,6 +105,12 @@ fun MealScreen(
         onManualFieldChange = viewModel::onManualFieldChange,
         onConfirmManualProduct = viewModel::onConfirmManualProduct,
         onDismissSheet = viewModel::onDismissSheet,
+        onUsdaQueryChange = viewModel::onUsdaQueryChange,
+        onUsdaSearch = viewModel::onUsdaSearch,
+        onUsdaPick = viewModel::onUsdaPick,
+        onUsdaKeyInputChange = viewModel::onUsdaKeyInputChange,
+        onUsdaSaveKey = viewModel::onUsdaSaveKey,
+        onUsdaDismissKeyPrompt = viewModel::onUsdaDismissKeyPrompt,
         modifier = modifier,
     )
 }
@@ -121,6 +130,12 @@ internal fun MealContent(
     onManualFieldChange: (Int, String) -> Unit,
     onConfirmManualProduct: () -> Unit,
     onDismissSheet: () -> Unit,
+    onUsdaQueryChange: (String) -> Unit = {},
+    onUsdaSearch: () -> Unit = {},
+    onUsdaPick: (UsdaFood) -> Unit = {},
+    onUsdaKeyInputChange: (String) -> Unit = {},
+    onUsdaSaveKey: () -> Unit = {},
+    onUsdaDismissKeyPrompt: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val detail = state.detail
@@ -216,6 +231,12 @@ internal fun MealContent(
                                 onFieldChange = onManualFieldChange,
                                 onConfirm = onConfirmManualProduct,
                                 onCancel = onDismissSheet,
+                                onUsdaQueryChange = onUsdaQueryChange,
+                                onUsdaSearch = onUsdaSearch,
+                                onUsdaPick = onUsdaPick,
+                                onUsdaKeyInputChange = onUsdaKeyInputChange,
+                                onUsdaSaveKey = onUsdaSaveKey,
+                                onUsdaDismissKeyPrompt = onUsdaDismissKeyPrompt,
                             )
                         }
                     }
@@ -367,6 +388,9 @@ private fun BrandExpansion(
                 brand = brand.brand.orEmpty(),
                 product = brand.productName,
                 per100g = brand.per100gLine,
+                isGeneric = brand.isGeneric,
+                isApprox = brand.isApprox,
+                variant = brand.variant,
                 accent = accent,
                 onClick = { onBrandClick(brand.productId) },
                 modifier = Modifier.fillMaxWidth(),
@@ -472,7 +496,8 @@ private fun QuantitySheetHost(
         brand = brand.brand,
         product = brand.productName,
         per100g = brand.per100g,
-        initialGrams = logged?.grams ?: DEFAULT_PORTION_GRAMS,
+        initialGrams = logged?.grams ?: brand.defaultServingG ?: DEFAULT_PORTION_GRAMS,
+        serving = ServingUnit.from(brand.servingUnit, brand.unitLabel, brand.gramsPerUnit),
         accent = accent,
         confirmLabel = if (logged != null) "Save" else "Add to log",
         onRemove = if (logged != null) ({ onRemove(item.itemId) }) else null,
@@ -488,6 +513,12 @@ private fun ManualProductSheet(
     onFieldChange: (Int, String) -> Unit,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
+    onUsdaQueryChange: (String) -> Unit,
+    onUsdaSearch: () -> Unit,
+    onUsdaPick: (UsdaFood) -> Unit,
+    onUsdaKeyInputChange: (String) -> Unit,
+    onUsdaSaveKey: () -> Unit,
+    onUsdaDismissKeyPrompt: () -> Unit,
 ) {
     // Six fields plus the actions can outgrow what is left above the keyboard on a short
     // window, so the sheet scrolls rather than clipping its own Save button.
@@ -503,6 +534,18 @@ private fun ManualProductSheet(
                     .padding(horizontal = Spacing.sp4, vertical = Spacing.sp2),
             )
         }
+        // The USDA long-tail lookup: fills the fields below rather than saving directly, so
+        // every hit still passes through the same editable confirmation the manual path uses.
+        UsdaLookup(
+            usda = sheet.usda,
+            accent = accent,
+            onQueryChange = onUsdaQueryChange,
+            onSearch = onUsdaSearch,
+            onPick = onUsdaPick,
+            onKeyInputChange = onUsdaKeyInputChange,
+            onSaveKey = onUsdaSaveKey,
+            onDismissKeyPrompt = onUsdaDismissKeyPrompt,
+        )
         ConfirmSheet(
             title = "Add a brand",
             fields = ManualProductInput.LABELS.mapIndexed { index, label ->
@@ -519,6 +562,134 @@ private fun ManualProductSheet(
             onCancel = onCancel,
         )
     }
+}
+
+/**
+ * USDA FoodData Central lookup, embedded above the manual fields.
+ *
+ * A typed food that is in neither the bundled set nor the library is searched here; a picked
+ * result prefills the fields below. The API key is the user's own — it is prompted for inline
+ * on first use and stored encrypted — so it never ships in the app and never sits in state
+ * longer than the prompt.
+ */
+@Composable
+private fun UsdaLookup(
+    usda: UsdaSearchState,
+    accent: AccentColors,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onPick: (UsdaFood) -> Unit,
+    onKeyInputChange: (String) -> Unit,
+    onSaveKey: () -> Unit,
+    onDismissKeyPrompt: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.sp4, vertical = Spacing.sp2),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sp2),
+    ) {
+        Text(
+            "Not listed? Search USDA".uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = OnSurfaceVariant,
+        )
+
+        if (usda.promptForKey) {
+            // First-use gate: FDC needs a free API key. Kept inline rather than a separate
+            // screen, and stored encrypted the moment it is saved.
+            Text(
+                "Paste your free USDA FoodData Central API key (fdc.nal.usda.gov).",
+                style = MaterialTheme.typography.bodyMedium,
+                color = OnSurfaceFaint,
+            )
+            SheetInput(usda.keyInput, "FDC API key", accent, onKeyInputChange)
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sp2)) {
+                AccentButton("Save key", accent = accent.base, onClick = onSaveKey)
+                Text(
+                    "Cancel",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = OnSurfaceVariant,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(Radius.md))
+                        .clickable(role = Role.Button, onClick = onDismissKeyPrompt)
+                        .padding(horizontal = Spacing.sp4, vertical = Spacing.sp3),
+                )
+            }
+            return@Column
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sp2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                SheetInput(usda.query, "e.g. quinoa, ragi", accent, onQueryChange)
+            }
+            AccentButton("Search", accent = accent.base, onClick = onSearch)
+        }
+
+        when (usda.status) {
+            UsdaStatus.Loading -> UsdaNote("Searching USDA…")
+            UsdaStatus.Empty -> UsdaNote("No USDA match for “${usda.query}”.")
+            UsdaStatus.Offline -> UsdaNote("Offline — connect to search USDA.")
+            UsdaStatus.Error -> UsdaNote("USDA lookup failed. Try again.")
+            UsdaStatus.Idle -> Unit
+        }
+
+        for (food in usda.results) {
+            BrandPickerRow(
+                brand = food.brand.orEmpty(),
+                product = food.description,
+                per100g = usdaLine(food),
+                isGeneric = food.brand == null,
+                accent = accent,
+                onClick = { onPick(food) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun UsdaNote(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = OnSurfaceFaint)
+}
+
+/** A single-line sheet input styled like the meal filter field. */
+@Composable
+private fun SheetInput(
+    value: String,
+    placeholder: String,
+    accent: AccentColors,
+    onValueChange: (String) -> Unit,
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = OnSurface),
+        cursorBrush = SolidColor(accent.base),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radius.md))
+            .background(Surface2)
+            .padding(horizontal = Spacing.sp3, vertical = Spacing.sp3),
+        decorationBox = { field ->
+            if (value.isEmpty()) {
+                Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = OnSurfaceFaint)
+            }
+            field()
+        },
+    )
+}
+
+/** Compact per-100g readout for a USDA result row. */
+private fun usdaLine(food: UsdaFood): String {
+    fun g(key: String) = food.nutrients[key]?.let { "%.1f".format(it) } ?: "—"
+    val kcal = food.nutrients[NutrientKeys.ENERGY_KCAL]?.let { "%.0f".format(it) } ?: "—"
+    return "per 100g · $kcal kcal · ${g(NutrientKeys.PROTEIN_G)}P · " +
+        "${g(NutrientKeys.CARBS_G)}C · ${g(NutrientKeys.FAT_G)}F"
 }
 
 /** Everything nutritional is typed per 100g, which is the basis products are stored in. */

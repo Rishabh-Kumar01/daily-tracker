@@ -45,14 +45,22 @@ import dev.rishabh.dailytracker.core.designsystem.Surface2
 import dev.rishabh.dailytracker.core.designsystem.Surface3
 
 /**
- * Product search-result row for picking a branded food: thumbnail, uppercase brand
- * caption, product name, mono per-100g macro line. Selected = accent border + container
+ * Product row for picking a branded or generic food: thumbnail, brand caption (or food name for
+ * generics), product name, mono per-100g macro line. Selected = accent border + container
  * fill + trailing check.
  *
- * Product art is user content, so absent a [thumbnailUrl] this draws a striped placeholder
- * rather than inventing an image.
+ * For bundled generic foods ([isGeneric] = true), the rendering changes:
+ * - Brand line becomes the food name in title case (not uppercase)
+ * - A prep subtitle is shown (e.g. "· cooked") when [variant] is present
+ * - An approx prefix "≈" is prepended to the product name when [isApprox] is true
+ * - No thumbnail placeholder (generics have no product art)
  *
+ * @param brand brand name for branded products; empty for generic foods.
+ * @param product display name.
  * @param per100g preformatted, e.g. "per 100g · 296 kcal · 18.5P · 5.4C · 22.7F".
+ * @param isGeneric true for bundled generic foods (brand == null, source == BUNDLED_GENERIC).
+ * @param isApprox true when the value is a typical composite, not a lab analysis.
+ * @param variant preparation state ("cooked", "raw", etc.) for generic foods.
  */
 @Composable
 fun BrandPickerRow(
@@ -61,6 +69,9 @@ fun BrandPickerRow(
     per100g: String,
     modifier: Modifier = Modifier,
     thumbnailUrl: String? = null,
+    isGeneric: Boolean = false,
+    isApprox: Boolean = false,
+    variant: String? = null,
     accent: AccentColors = DailyTrackerTheme.accent,
     selected: Boolean = false,
     disabled: Boolean = false,
@@ -78,20 +89,53 @@ fun BrandPickerRow(
         horizontalArrangement = Arrangement.spacedBy(Spacing.sp3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Thumbnail(thumbnailUrl)
+        // Generics don't show a thumbnail — they have no product art.
+        if (!isGeneric) {
+            Thumbnail(thumbnailUrl)
+        }
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                brand.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = if (selected) accent.base else OnSurfaceVariant,
-            )
-            Text(
-                product,
-                style = MaterialTheme.typography.bodyLarge,
-                color = OnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (isGeneric) {
+                // Generic foods: show the food name as the primary label (not uppercase).
+                Text(
+                    product,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                // Prep subtitle, e.g. "· cooked"
+                if (variant != null) {
+                    Text(
+                        "· $variant",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OnSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+                // Approx prefix for approximate values
+                if (isApprox) {
+                    Text(
+                        "≈ Typical preparation",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OnSurfaceFaint,
+                        maxLines = 1,
+                    )
+                }
+            } else {
+                // Branded foods: uppercase brand caption + product name.
+                Text(
+                    brand.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (selected) accent.base else OnSurfaceVariant,
+                )
+                Text(
+                    product,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Text(
                 per100g,
                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontMono),
@@ -137,6 +181,21 @@ private fun Thumbnail(url: String?) {
 private fun BrandPickerRowPreview() {
     DailyTrackerTheme {
         Column(modifier = Modifier.padding(Spacing.sp2)) {
+            // Generic food — toor dal, cooked
+            BrandPickerRow(
+                brand = "", product = "Toor dal",
+                per100g = "per 100g · 76 kcal · 3.0P · 13.5C · 0.7F",
+                isGeneric = true, variant = "cooked",
+                accent = DailyTrackerTheme.accents.diet,
+            )
+            // Generic food — approximate
+            BrandPickerRow(
+                brand = "", product = "Tea",
+                per100g = "per 100g · 1 kcal · 0.0P · 0.3C · 0.0F",
+                isGeneric = true, isApprox = true,
+                accent = DailyTrackerTheme.accents.diet,
+            )
+            // Branded food
             BrandPickerRow(
                 brand = "Amul", product = "Malai Paneer",
                 per100g = "per 100g · 296 kcal · 18.5P · 5.4C · 22.7F",
@@ -146,11 +205,6 @@ private fun BrandPickerRowPreview() {
                 brand = "Mother Dairy", product = "Paneer",
                 per100g = "per 100g · 265 kcal · 18.9P · 3.3C · 20.0F",
                 accent = DailyTrackerTheme.accents.diet,
-            )
-            BrandPickerRow(
-                brand = "iD Fresh", product = "Paneer",
-                per100g = "per 100g · 257 kcal · 17.7P · 4.5C · 19.2F",
-                accent = DailyTrackerTheme.accents.diet, disabled = true,
             )
         }
     }

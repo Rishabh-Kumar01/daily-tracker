@@ -13,6 +13,7 @@ import dev.rishabh.dailytracker.core.common.SystemTimeSource
 import dev.rishabh.dailytracker.core.common.TimeSource
 import dev.rishabh.dailytracker.core.common.UuidGenerator
 import dev.rishabh.dailytracker.core.db.DailyTrackerDatabase
+import dev.rishabh.dailytracker.core.db.dao.GenericFoodMetaDao
 import dev.rishabh.dailytracker.core.db.dao.LogDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
@@ -29,6 +30,7 @@ object DatabaseModule {
             // No fallbackToDestructiveMigration: this is the user's only copy of their
             // history and there is no cloud backup. A missing migration must fail loudly
             // in development, never silently wipe logs on a real device.
+            .addMigrations(DailyTrackerDatabase.MIGRATION_1_2, DailyTrackerDatabase.MIGRATION_2_3)
             .build()
 
     @Provides
@@ -39,6 +41,9 @@ object DatabaseModule {
 
     @Provides
     fun provideProductDao(db: DailyTrackerDatabase): ProductDao = db.productDao()
+
+    @Provides
+    fun provideGenericFoodMetaDao(db: DailyTrackerDatabase): GenericFoodMetaDao = db.genericFoodMetaDao()
 }
 
 @Module
