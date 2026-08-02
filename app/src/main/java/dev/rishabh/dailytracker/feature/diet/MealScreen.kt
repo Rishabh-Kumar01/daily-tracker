@@ -32,7 +32,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -46,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.rishabh.dailytracker.core.camera.PhotoCaptureCamera
 import dev.rishabh.dailytracker.core.designsystem.AccentColors
 import dev.rishabh.dailytracker.core.designsystem.ActivityKey
 import dev.rishabh.dailytracker.core.designsystem.DailyTrackerTheme
@@ -66,6 +71,7 @@ import dev.rishabh.dailytracker.core.designsystem.component.BackTopBar
 import dev.rishabh.dailytracker.core.designsystem.component.BrandPickerRow
 import dev.rishabh.dailytracker.core.designsystem.component.ConfirmField
 import dev.rishabh.dailytracker.core.designsystem.component.ConfirmSheet
+import dev.rishabh.dailytracker.core.designsystem.component.FrontPhotoRow
 import dev.rishabh.dailytracker.core.designsystem.component.ItemRow
 import dev.rishabh.dailytracker.core.designsystem.component.Per100g
 import dev.rishabh.dailytracker.core.designsystem.component.QuantitySheet
@@ -89,30 +95,60 @@ fun MealScreen(
     onScanClick: (itemId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MealViewModel = hiltViewModel(),
+    pendingScanLogItemId: String? = null,
+    pendingScanLogProductId: String? = null,
+    onScanLogConsumed: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    MealContent(
-        state = state,
-        onBack = onBack,
-        onItemClick = viewModel::onItemClick,
-        onBrandClick = viewModel::onBrandClick,
-        onAddBrandClick = viewModel::onAddBrandClick,
-        onScanClick = onScanClick,
-        onToggleSearch = viewModel::onToggleSearch,
-        onQueryChange = viewModel::onQueryChange,
-        onConfirmQuantity = viewModel::onConfirmQuantity,
-        onRemovePortion = viewModel::onRemovePortion,
-        onManualFieldChange = viewModel::onManualFieldChange,
-        onConfirmManualProduct = viewModel::onConfirmManualProduct,
-        onDismissSheet = viewModel::onDismissSheet,
-        onUsdaQueryChange = viewModel::onUsdaQueryChange,
-        onUsdaSearch = viewModel::onUsdaSearch,
-        onUsdaPick = viewModel::onUsdaPick,
-        onUsdaKeyInputChange = viewModel::onUsdaKeyInputChange,
-        onUsdaSaveKey = viewModel::onUsdaSaveKey,
-        onUsdaDismissKeyPrompt = viewModel::onUsdaDismissKeyPrompt,
-        modifier = modifier,
-    )
+
+    // "Log it now" from a re-scan: the saved product's portion sheet opens directly, then
+    // the hand-off is consumed so it doesn't re-fire on recomposition.
+    LaunchedEffect(pendingScanLogItemId, pendingScanLogProductId) {
+        val itemId = pendingScanLogItemId
+        val productId = pendingScanLogProductId
+        if (itemId != null && productId != null) {
+            viewModel.onScanLogRequest(itemId, productId)
+            onScanLogConsumed()
+        }
+    }
+
+    // Camera overlay over everything else; the captured temp file waits on the manual
+    // sheet until the product is saved.
+    var cameraOpen by remember { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxSize()) {
+        MealContent(
+            state = state,
+            onBack = onBack,
+            onItemClick = viewModel::onItemClick,
+            onBrandClick = viewModel::onBrandClick,
+            onAddBrandClick = viewModel::onAddBrandClick,
+            onScanClick = onScanClick,
+            onToggleSearch = viewModel::onToggleSearch,
+            onQueryChange = viewModel::onQueryChange,
+            onConfirmQuantity = viewModel::onConfirmQuantity,
+            onRemovePortion = viewModel::onRemovePortion,
+            onManualFieldChange = viewModel::onManualFieldChange,
+            onConfirmManualProduct = viewModel::onConfirmManualProduct,
+            onDismissSheet = viewModel::onDismissSheet,
+            onUsdaQueryChange = viewModel::onUsdaQueryChange,
+            onUsdaSearch = viewModel::onUsdaSearch,
+            onUsdaPick = viewModel::onUsdaPick,
+            onUsdaKeyInputChange = viewModel::onUsdaKeyInputChange,
+            onUsdaSaveKey = viewModel::onUsdaSaveKey,
+            onUsdaDismissKeyPrompt = viewModel::onUsdaDismissKeyPrompt,
+            onAddPhoto = { cameraOpen = true },
+            modifier = modifier,
+        )
+        if (cameraOpen) {
+            PhotoCaptureCamera(
+                onCaptured = { file ->
+                    cameraOpen = false
+                    viewModel.onManualPhotoCaptured(file.absolutePath)
+                },
+                onCancel = { cameraOpen = false },
+            )
+        }
+    }
 }
 
 @Composable
@@ -136,6 +172,7 @@ internal fun MealContent(
     onUsdaKeyInputChange: (String) -> Unit = {},
     onUsdaSaveKey: () -> Unit = {},
     onUsdaDismissKeyPrompt: () -> Unit = {},
+    onAddPhoto: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val detail = state.detail
@@ -237,6 +274,7 @@ internal fun MealContent(
                                 onUsdaKeyInputChange = onUsdaKeyInputChange,
                                 onUsdaSaveKey = onUsdaSaveKey,
                                 onUsdaDismissKeyPrompt = onUsdaDismissKeyPrompt,
+                                onAddPhoto = onAddPhoto,
                             )
                         }
                     }
@@ -388,6 +426,7 @@ private fun BrandExpansion(
                 brand = brand.brand.orEmpty(),
                 product = brand.productName,
                 per100g = brand.per100gLine,
+                thumbnailUrl = brand.photoPath,
                 isGeneric = brand.isGeneric,
                 isApprox = brand.isApprox,
                 variant = brand.variant,
@@ -519,6 +558,7 @@ private fun ManualProductSheet(
     onUsdaKeyInputChange: (String) -> Unit,
     onUsdaSaveKey: () -> Unit,
     onUsdaDismissKeyPrompt: () -> Unit,
+    onAddPhoto: () -> Unit,
 ) {
     // Six fields plus the actions can outgrow what is left above the keyboard on a short
     // window, so the sheet scrolls rather than clipping its own Save button.
@@ -557,6 +597,9 @@ private fun ManualProductSheet(
             },
             accent = accent,
             confirmLabel = "Save product",
+            headerContent = {
+                FrontPhotoRow(photoPath = sheet.pendingPhotoPath, accent = accent, onClick = onAddPhoto)
+            },
             onFieldChange = onFieldChange,
             onConfirm = onConfirm,
             onCancel = onCancel,

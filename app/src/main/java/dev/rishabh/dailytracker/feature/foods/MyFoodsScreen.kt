@@ -24,6 +24,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -34,10 +37,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.draw.clip
+import coil3.compose.AsyncImage
+import dev.rishabh.dailytracker.core.camera.PhotoCaptureCamera
 import dev.rishabh.dailytracker.core.designsystem.AccentColors
 import dev.rishabh.dailytracker.core.designsystem.DailyTrackerTheme
 import dev.rishabh.dailytracker.core.designsystem.Danger
 import dev.rishabh.dailytracker.core.designsystem.DangerContainer
+import dev.rishabh.dailytracker.core.designsystem.Dimens
 import dev.rishabh.dailytracker.core.designsystem.FontMono
 import dev.rishabh.dailytracker.core.designsystem.OnAccent
 import dev.rishabh.dailytracker.core.designsystem.OnSurface
@@ -52,7 +58,9 @@ import dev.rishabh.dailytracker.core.designsystem.Surface3
 import dev.rishabh.dailytracker.core.designsystem.component.BackTopBar
 import dev.rishabh.dailytracker.core.designsystem.component.ConfirmField
 import dev.rishabh.dailytracker.core.designsystem.component.ConfirmSheet
+import dev.rishabh.dailytracker.core.designsystem.component.FrontPhotoRow
 import dev.rishabh.dailytracker.feature.diet.ManualProductInput
+import java.io.File
 
 @Composable
 fun MyFoodsScreen(
@@ -61,20 +69,35 @@ fun MyFoodsScreen(
     viewModel: MyFoodsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    MyFoodsContent(
-        state = state,
-        onBack = onBack,
-        onQueryChange = viewModel::onQueryChange,
-        onFilterChange = viewModel::onFilterChange,
-        onEdit = viewModel::onEdit,
-        onDeleteClick = viewModel::onDeleteClick,
-        onConfirmDelete = viewModel::onConfirmDelete,
-        onCancelDelete = viewModel::onCancelDelete,
-        onEditFieldChange = viewModel::onEditFieldChange,
-        onSaveEdit = viewModel::onSaveEdit,
-        onDismissEdit = viewModel::onDismissEdit,
-        modifier = modifier,
-    )
+    // Camera overlay over everything else; the captured temp file goes straight to the VM,
+    // which attaches it to the product being edited.
+    var cameraOpen by remember { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxSize()) {
+        MyFoodsContent(
+            state = state,
+            onBack = onBack,
+            onQueryChange = viewModel::onQueryChange,
+            onFilterChange = viewModel::onFilterChange,
+            onEdit = viewModel::onEdit,
+            onDeleteClick = viewModel::onDeleteClick,
+            onConfirmDelete = viewModel::onConfirmDelete,
+            onCancelDelete = viewModel::onCancelDelete,
+            onEditFieldChange = viewModel::onEditFieldChange,
+            onSaveEdit = viewModel::onSaveEdit,
+            onDismissEdit = viewModel::onDismissEdit,
+            onAddPhoto = { cameraOpen = true },
+            modifier = modifier,
+        )
+        if (cameraOpen) {
+            PhotoCaptureCamera(
+                onCaptured = { file ->
+                    cameraOpen = false
+                    viewModel.onEditPhotoCaptured(file.absolutePath)
+                },
+                onCancel = { cameraOpen = false },
+            )
+        }
+    }
 }
 
 @Composable
@@ -91,6 +114,7 @@ internal fun MyFoodsContent(
     onSaveEdit: () -> Unit,
     onDismissEdit: () -> Unit,
     modifier: Modifier = Modifier,
+    onAddPhoto: () -> Unit = {},
 ) {
     val accent = DailyTrackerTheme.accents.diet
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -134,7 +158,7 @@ internal fun MyFoodsContent(
                         .clickable(role = Role.Button, onClick = onDismissEdit),
                 )
                 Box(modifier = Modifier.align(Alignment.BottomCenter).imePadding()) {
-                    EditSheetContent(edit, accent, onEditFieldChange, onSaveEdit, onDismissEdit)
+                    EditSheetContent(edit, accent, onEditFieldChange, onSaveEdit, onDismissEdit, onAddPhoto)
                 }
             }
 
@@ -240,6 +264,14 @@ private fun ProductRow(
         horizontalArrangement = Arrangement.spacedBy(Spacing.sp3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // No placeholder: a product without a photo renders text-only, as before.
+        if (card.photoPath != null) {
+            AsyncImage(
+                model = File(card.photoPath),
+                contentDescription = null,
+                modifier = Modifier.size(Dimens.thumbnail).clip(RoundedCornerShape(Radius.sm)),
+            )
+        }
         Column(modifier = Modifier.weight(1f)) {
             if (!card.isGeneric && card.brand != null) {
                 Text(card.brand.uppercase(), style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
@@ -335,6 +367,7 @@ private fun EditSheetContent(
     onFieldChange: (Int, String) -> Unit,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
+    onAddPhoto: () -> Unit,
 ) {
     Column {
         if (edit.error != null) {
@@ -355,6 +388,7 @@ private fun EditSheetContent(
             },
             accent = accent,
             confirmLabel = "Save changes",
+            headerContent = { FrontPhotoRow(photoPath = edit.photoPath, accent = accent, onClick = onAddPhoto) },
             onFieldChange = onFieldChange,
             onConfirm = onConfirm,
             onCancel = onCancel,

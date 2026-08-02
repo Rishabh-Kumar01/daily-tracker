@@ -54,6 +54,7 @@ data class ConfirmField(
  * an editable field before it's saved, and the same component serves manual confirm flows.
  *
  * @param focusedField index shown with an accent border, or -1 for none.
+ * @param headerContent optional slot between the title and the fields (e.g. a photo row).
  */
 @Composable
 fun ConfirmSheet(
@@ -65,6 +66,7 @@ fun ConfirmSheet(
     disabled: Boolean = false,
     confirmLabel: String = "Confirm",
     cancelLabel: String = "Cancel",
+    headerContent: (@Composable () -> Unit)? = null,
     onConfirm: () -> Unit = {},
     onCancel: () -> Unit = {},
     onFieldChange: (index: Int, value: String) -> Unit = { _, _ -> },
@@ -79,6 +81,10 @@ fun ConfirmSheet(
     ) {
         SheetHandle(Modifier.align(Alignment.CenterHorizontally).padding(bottom = Spacing.sp3))
         Text(title, style = MaterialTheme.typography.titleLarge, color = OnSurface)
+
+        if (headerContent != null) {
+            Box(modifier = Modifier.padding(top = Spacing.sp2)) { headerContent() }
+        }
 
         Column(
             modifier = Modifier.padding(vertical = Spacing.sp4),

@@ -18,6 +18,8 @@ data class ProductCard(
     val isGeneric: Boolean,
     val per100gLine: String,
     val per100g: NutrientTotals,
+    /** Absolute path of the front photo, when one has been attached. */
+    val photoPath: String? = null,
 )
 
 /** The edit sheet over the library: the confirmation form, prefilled from a product. */
@@ -25,6 +27,8 @@ data class EditSheet(
     val productId: String,
     val input: ManualProductInput,
     val error: String? = null,
+    /** Current front photo, so the sheet can show it and offer a retake. */
+    val photoPath: String? = null,
 )
 
 data class MyFoodsUiState(

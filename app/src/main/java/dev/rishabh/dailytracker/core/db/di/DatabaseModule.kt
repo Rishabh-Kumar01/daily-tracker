@@ -15,6 +15,7 @@ import dev.rishabh.dailytracker.core.common.UuidGenerator
 import dev.rishabh.dailytracker.core.db.DailyTrackerDatabase
 import dev.rishabh.dailytracker.core.db.dao.GenericFoodMetaDao
 import dev.rishabh.dailytracker.core.db.dao.LogDao
+import dev.rishabh.dailytracker.core.db.dao.MediaDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
 import javax.inject.Singleton
@@ -48,6 +49,9 @@ object DatabaseModule {
 
     @Provides
     fun provideGenericFoodMetaDao(db: DailyTrackerDatabase): GenericFoodMetaDao = db.genericFoodMetaDao()
+
+    @Provides
+    fun provideMediaDao(db: DailyTrackerDatabase): MediaDao = db.mediaDao()
 }
 
 @Module

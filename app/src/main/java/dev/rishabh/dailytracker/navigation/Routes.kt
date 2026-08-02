@@ -22,6 +22,13 @@ object Routes {
     /** The barcode scanner is per-food: the item decides the product's grouping key. */
     const val SCAN = "scan/{$ARG_ITEM_ID}"
 
+    /**
+     * Scan → meal hand-off keys, written to the sub-menu entry's savedStateHandle when a
+     * re-scanned product should go straight to its portion sheet ("Log it now").
+     */
+    const val SCAN_LOG_ITEM_ID = "scanLogItemId"
+    const val SCAN_LOG_PRODUCT_ID = "scanLogProductId"
+
     fun activity(templateId: String) = "activity/$templateId"
     fun subMenu(subMenuId: String) = "submenu/$subMenuId"
     fun scan(itemId: String) = "scan/$itemId"

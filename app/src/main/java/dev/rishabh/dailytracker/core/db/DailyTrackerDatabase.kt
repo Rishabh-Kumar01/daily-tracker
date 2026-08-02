@@ -7,6 +7,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.rishabh.dailytracker.core.db.dao.GenericFoodMetaDao
 import dev.rishabh.dailytracker.core.db.dao.LogDao
+import dev.rishabh.dailytracker.core.db.dao.MediaDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
 import dev.rishabh.dailytracker.core.db.entity.ActivityTemplateEntity
@@ -72,6 +73,7 @@ abstract class DailyTrackerDatabase : RoomDatabase() {
     abstract fun logDao(): LogDao
     abstract fun productDao(): ProductDao
     abstract fun genericFoodMetaDao(): GenericFoodMetaDao
+    abstract fun mediaDao(): MediaDao
 
     companion object {
         const val NAME = "daily_tracker.db"

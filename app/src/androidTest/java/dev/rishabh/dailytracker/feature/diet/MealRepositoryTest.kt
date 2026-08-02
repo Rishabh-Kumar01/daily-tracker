@@ -9,12 +9,14 @@ import dev.rishabh.dailytracker.core.db.DailyTrackerDatabase
 import dev.rishabh.dailytracker.core.db.FakeIdGenerator
 import dev.rishabh.dailytracker.core.db.FakeTimeSource
 import dev.rishabh.dailytracker.core.db.FieldType
+import dev.rishabh.dailytracker.core.db.MediaType
 import dev.rishabh.dailytracker.core.db.NutrientKeys
 import dev.rishabh.dailytracker.core.db.ProductSource
 import dev.rishabh.dailytracker.core.db.VariantSource
 import dev.rishabh.dailytracker.core.db.entity.ActivityTemplateEntity
 import dev.rishabh.dailytracker.core.db.entity.ItemEntity
 import dev.rishabh.dailytracker.core.db.entity.ItemFieldEntity
+import dev.rishabh.dailytracker.core.db.entity.MediaEntity
 import dev.rishabh.dailytracker.core.db.entity.ProductEntity
 import dev.rishabh.dailytracker.core.db.entity.ProductNutrientEntity
 import dev.rishabh.dailytracker.core.db.entity.SubMenuEntity
@@ -45,7 +47,7 @@ class MealRepositoryTest {
         ).build()
         ids = FakeIdGenerator()
         time = FakeTimeSource()
-        repository = MealRepository(db.templateDao(), db.logDao(), db.productDao(), db.genericFoodMetaDao(), ids, time)
+        repository = MealRepository(db.templateDao(), db.logDao(), db.productDao(), db.genericFoodMetaDao(), db.mediaDao(), ids, time)
 
         db.templateDao().insertFullTemplate(
             ActivityTemplateEntity("t1", "Diet", "restaurant", "#75D78D", CreatedBy.SYSTEM, "sum_field", "kcal", 1, false, 0, 1L),
@@ -264,5 +266,57 @@ class MealRepositoryTest {
         assertThat(second).isEqualTo(first)
         assertThat(item("i2").brands).hasSize(1)
         assertThat(item("i2").brands.single().per100g.kcal).isEqualTo(345.0)
+    }
+
+    @Test
+    fun resaving_a_product_keeps_its_front_photo() = runTest {
+        val productId = repository.createManualProduct(
+            "rice",
+            ValidatedProduct("India Gate", "Basmati", mapOf(NutrientKeys.ENERGY_KCAL to 350.0)),
+            barcode = "8901262010207",
+            source = ProductSource.OFF,
+        )
+        db.mediaDao().insert(MediaEntity("m1", "/photos/front.jpg", MediaType.PRODUCT_FRONT, createdAt = 1L))
+        db.productDao().setFrontPhoto(productId, "m1")
+
+        // A confirm-sheet re-save rebuilds the row; the photo must survive it.
+        repository.createManualProduct(
+            "rice",
+            ValidatedProduct("India Gate", "Basmati", mapOf(NutrientKeys.ENERGY_KCAL to 345.0)),
+            barcode = "8901262010207",
+            source = ProductSource.OFF,
+        )
+
+        assertThat(db.productDao().getProduct(productId)?.frontPhotoRef).isEqualTo("m1")
+    }
+
+    @Test
+    fun a_brand_carries_its_photo_path_into_the_meal() = runTest {
+        db.mediaDao().insert(MediaEntity("m1", "/photos/front.jpg", MediaType.PRODUCT_FRONT, createdAt = 1L))
+        db.productDao().setFrontPhoto("p1", "m1")
+
+        assertThat(item("i1").brands.single().photoPath).isEqualTo("/photos/front.jpg")
+    }
+
+    @Test
+    fun the_scan_precheck_returns_the_saved_product_with_its_macro_line() = runTest {
+        repository.createManualProduct(
+            "rice",
+            ValidatedProduct(
+                "India Gate", "Basmati",
+                mapOf(NutrientKeys.ENERGY_KCAL to 350.0, NutrientKeys.CARBS_G to 78.0),
+            ),
+            barcode = "8901262010207",
+            source = ProductSource.OFF,
+        )
+
+        val existing = checkNotNull(repository.productForBarcode("8901262010207"))
+        assertThat(existing.productName).isEqualTo("Basmati")
+        assertThat(existing.brand).isEqualTo("India Gate")
+        assertThat(existing.source).isEqualTo(ProductSource.OFF)
+        assertThat(existing.per100g.kcal).isEqualTo(350.0)
+        assertThat(existing.per100gLine).contains("350 kcal")
+
+        assertThat(repository.productForBarcode("0000000000000")).isNull()
     }
 }

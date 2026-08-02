@@ -6,9 +6,11 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.rishabh.dailytracker.core.db.NutrientKeys
 import dev.rishabh.dailytracker.core.db.ProductSource
+import dev.rishabh.dailytracker.core.media.ProductPhotoStore
 import dev.rishabh.dailytracker.core.network.LookupResult
 import dev.rishabh.dailytracker.core.network.OpenFoodFactsClient
 import dev.rishabh.dailytracker.core.network.ScannedProduct
+import dev.rishabh.dailytracker.feature.diet.ExistingProduct
 import dev.rishabh.dailytracker.feature.diet.ManualProductInput
 import dev.rishabh.dailytracker.feature.diet.MealRepository
 import dev.rishabh.dailytracker.feature.diet.ProductValidation
@@ -39,7 +41,15 @@ sealed interface ScanState {
         val source: ProductSource,
         val notice: String?,
         val error: String? = null,
+        /** Open Food Facts front image, attached to the product on save. */
+        val imageUrl: String? = null,
     ) : ScanState
+
+    /**
+     * The barcode already belongs to a saved product — the lookup stops before the network
+     * and the sheet offers to log or adjust it instead of silently re-saving the same row.
+     */
+    data class AlreadySaved(val barcode: String, val product: ExistingProduct) : ScanState
 
     /** Network failure, as opposed to a valid "no such product". Offers retry. */
     data class LookupFailed(val barcode: String, val offline: Boolean) : ScanState
@@ -49,6 +59,7 @@ sealed interface ScanState {
 class ScanViewModel @Inject constructor(
     private val repository: MealRepository,
     private val client: OpenFoodFactsClient,
+    private val photoStore: ProductPhotoStore,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -76,12 +87,19 @@ class ScanViewModel @Inject constructor(
     private fun lookup(barcode: String) {
         _state.value = ScanState.LookingUp(barcode)
         viewModelScope.launch {
+            // Barcode identifies a packet exactly, so a re-scan never reaches the network —
+            // it surfaces the product the barcode already belongs to.
+            repository.productForBarcode(barcode)?.let { existing ->
+                _state.value = ScanState.AlreadySaved(barcode, existing)
+                return@launch
+            }
             _state.value = when (val result = client.lookup(barcode)) {
                 is LookupResult.Found -> ScanState.Confirm(
                     barcode = barcode,
                     input = result.product.toInput(),
                     source = ProductSource.OFF,
                     notice = noticeFor(result.product),
+                    imageUrl = result.product.imageUrl,
                 )
 
                 LookupResult.NotFound -> ScanState.Confirm(
@@ -114,6 +132,20 @@ class ScanViewModel @Inject constructor(
         )
     }
 
+    /**
+     * Opens the already-saved product in the confirm sheet. Saving goes through the same
+     * barcode dedup, so it updates that row rather than creating a second one.
+     */
+    fun onAdjustExisting() {
+        val saved = _state.value as? ScanState.AlreadySaved ?: return
+        _state.value = ScanState.Confirm(
+            barcode = saved.barcode,
+            input = saved.product.toInput(),
+            source = saved.product.source,
+            notice = "Already in your foods — saving updates it",
+        )
+    }
+
     fun onRescan() {
         _state.value = ScanState.Scanning
     }
@@ -137,12 +169,16 @@ class ScanViewModel @Inject constructor(
 
             is ProductValidation.Valid -> viewModelScope.launch {
                 val genericName = repository.genericNameForItem(itemId) ?: return@launch
-                _savedProductId.value = repository.createManualProduct(
+                val productId = repository.createManualProduct(
                     genericName = genericName,
                     product = result.product,
                     barcode = confirm.barcode,
                     source = confirm.source,
                 )
+                // Best-effort: a failed download still leaves the product saved, just
+                // without a photo.
+                confirm.imageUrl?.let { photoStore.attachFromUrl(productId, it) }
+                _savedProductId.value = productId
             }
         }
     }
@@ -158,7 +194,20 @@ private fun ScannedProduct.toInput() = ManualProductInput(
     fat = nutrients.field(NutrientKeys.FAT_G),
 )
 
-private fun Map<String, Double>.field(key: String): String {
-    val value = this[key] ?: return ""
-    return if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()
+/** Same prefill for the "adjust" path on an already-saved product. */
+private fun ExistingProduct.toInput() = ManualProductInput(
+    brand = brand.orEmpty(),
+    productName = productName,
+    kcal = per100g.kcal.formatAmount(),
+    protein = per100g.protein.formatAmount(),
+    carbs = per100g.carbs.formatAmount(),
+    fat = per100g.fat.formatAmount(),
+)
+
+private fun Map<String, Double>.field(key: String): String = this[key].formatAmount()
+
+private fun Double?.formatAmount(): String = when {
+    this == null -> ""
+    this % 1.0 == 0.0 -> toLong().toString()
+    else -> toString()
 }

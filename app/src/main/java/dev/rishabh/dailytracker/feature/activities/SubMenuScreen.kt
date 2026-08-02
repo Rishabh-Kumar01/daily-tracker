@@ -58,6 +58,9 @@ fun SubMenuScreen(
     onBack: () -> Unit,
     onScanClick: (itemId: String) -> Unit,
     modifier: Modifier = Modifier,
+    pendingScanLogItemId: String? = null,
+    pendingScanLogProductId: String? = null,
+    onScanLogConsumed: () -> Unit = {},
     viewModel: SubMenuViewModel = hiltViewModel(),
 ) {
     val detail by viewModel.state.collectAsStateWithLifecycle()
@@ -65,7 +68,14 @@ fun SubMenuScreen(
     // belongs to: variant-backed items log through the meal screen, everything else still
     // browses. Workout/Study/Sleep keep the read-only leaf until their own slices land.
     if (detail?.isVariantLogging == true) {
-        MealScreen(onBack = onBack, onScanClick = onScanClick, modifier = modifier)
+        MealScreen(
+            onBack = onBack,
+            onScanClick = onScanClick,
+            pendingScanLogItemId = pendingScanLogItemId,
+            pendingScanLogProductId = pendingScanLogProductId,
+            onScanLogConsumed = onScanLogConsumed,
+            modifier = modifier,
+        )
     } else {
         SubMenuContent(detail = detail, onBack = onBack, modifier = modifier)
     }

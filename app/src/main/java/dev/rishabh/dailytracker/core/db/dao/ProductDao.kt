@@ -134,6 +134,10 @@ interface ProductDao {
     @Query("UPDATE products SET last_used_at = :usedAt WHERE product_id = :productId")
     suspend fun touch(productId: String, usedAt: Long)
 
+    /** Points the product's front photo at a media row. */
+    @Query("UPDATE products SET front_photo_ref = :mediaId WHERE product_id = :productId")
+    suspend fun setFrontPhoto(productId: String, mediaId: String?)
+
     /** A product without its nutrients is useless, so they commit together. */
     @Transaction
     suspend fun insertProductWithNutrients(

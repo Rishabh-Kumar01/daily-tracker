@@ -1,5 +1,6 @@
 package dev.rishabh.dailytracker.feature.diet
 
+import dev.rishabh.dailytracker.core.db.ProductSource
 import dev.rishabh.dailytracker.core.designsystem.ActivityKey
 import dev.rishabh.dailytracker.core.designsystem.component.Per100g
 import dev.rishabh.dailytracker.core.nutrition.NutrientTotals
@@ -34,6 +35,21 @@ data class BrandOption(
     val unitLabel: String? = null,
     /** Grams in one [unitLabel]; the input-to-grams conversion factor. */
     val gramsPerUnit: Double? = null,
+    /** Absolute path of the front photo, when one has been attached. */
+    val photoPath: String? = null,
+)
+
+/**
+ * The product a scanned barcode already belongs to — what the scan flow's "already in your
+ * foods" sheet renders and what "adjust" prefills from.
+ */
+data class ExistingProduct(
+    val productId: String,
+    val brand: String?,
+    val productName: String,
+    val source: ProductSource,
+    val per100g: Per100g,
+    val per100gLine: String,
 )
 
 /**

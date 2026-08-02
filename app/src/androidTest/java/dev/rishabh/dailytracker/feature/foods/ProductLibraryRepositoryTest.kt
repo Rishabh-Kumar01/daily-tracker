@@ -5,9 +5,11 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import dev.rishabh.dailytracker.core.db.DailyTrackerDatabase
+import dev.rishabh.dailytracker.core.db.MediaType
 import dev.rishabh.dailytracker.core.db.NutrientKeys
 import dev.rishabh.dailytracker.core.db.ProductSource
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
+import dev.rishabh.dailytracker.core.db.entity.MediaEntity
 import dev.rishabh.dailytracker.core.db.entity.ProductEntity
 import dev.rishabh.dailytracker.core.db.entity.ProductNutrientEntity
 import dev.rishabh.dailytracker.feature.diet.ValidatedProduct
@@ -37,7 +39,7 @@ class ProductLibraryRepositoryTest {
             DailyTrackerDatabase::class.java,
         ).build()
         dao = db.productDao()
-        repo = ProductLibraryRepository(dao)
+        repo = ProductLibraryRepository(dao, db.mediaDao())
         dao.insertProductWithNutrients(
             ProductEntity(
                 productId = "p1", genericName = "paneer", brand = "Amul", productName = "Malai Paneer",
@@ -117,5 +119,13 @@ class ProductLibraryRepositoryTest {
         assertThat(dao.observeByGenericName("paneer").first()).isEmpty()
         // ...but a logged day can still resolve it by id — never orphaned.
         assertThat(dao.getProduct("p1")).isNotNull()
+    }
+
+    @Test
+    fun libraryCardsCarryTheirPhotoPath() = runTest {
+        db.mediaDao().insert(MediaEntity("m1", "/photos/front.jpg", MediaType.PRODUCT_FRONT, createdAt = 1L))
+        dao.setFrontPhoto("p1", "m1")
+
+        assertThat(repo.observeLibrary("").first().single().photoPath).isEqualTo("/photos/front.jpg")
     }
 }

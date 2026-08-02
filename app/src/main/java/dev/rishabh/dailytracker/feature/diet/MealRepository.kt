@@ -7,6 +7,7 @@ import dev.rishabh.dailytracker.core.db.NutrientKeys
 import dev.rishabh.dailytracker.core.db.ProductSource
 import dev.rishabh.dailytracker.core.db.dao.GenericFoodMetaDao
 import dev.rishabh.dailytracker.core.db.dao.LogDao
+import dev.rishabh.dailytracker.core.db.dao.MediaDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
 import dev.rishabh.dailytracker.core.db.entity.LogEntryEntity
@@ -40,6 +41,7 @@ class MealRepository @Inject constructor(
     private val logDao: LogDao,
     private val productDao: ProductDao,
     private val genericFoodMetaDao: GenericFoodMetaDao,
+    private val mediaDao: MediaDao,
     private val ids: IdGenerator,
     private val time: TimeSource,
 ) {
@@ -58,6 +60,13 @@ class MealRepository @Inject constructor(
             val fields = templateDao.getFieldsForSubMenu(subMenuId).groupBy { it.itemId }
             val nutrientsByProduct = nutrients.groupBy { it.productId }
             val productsByGeneric = products.groupBy { it.genericName }
+            // Front photos resolve in one bulk read; a photo attach re-emits the product
+            // (front_photo_ref lives on it), so this stays fresh without observing media.
+            val photoPaths = products.mapNotNull { it.frontPhotoRef }
+                .takeIf { it.isNotEmpty() }
+                ?.let { mediaDao.getByIds(it) }
+                .orEmpty()
+                .associate { it.mediaId to it.filePath }
 
             // Index generic_food_meta by product_id for O(1) lookup.
             val metaByProduct = metaList.associateBy { it.productId }
@@ -108,7 +117,12 @@ class MealRepository @Inject constructor(
                     variantFieldKey = itemFields
                         .firstOrNull { it.type == FieldType.ITEM_VARIANT.wire }?.fieldKey,
                     brands = allProducts.map { product ->
-                        brandOption(product, nutrientsByProduct[product.productId].orEmpty(), metaByProduct[product.productId])
+                        brandOption(
+                            product,
+                            nutrientsByProduct[product.productId].orEmpty(),
+                            metaByProduct[product.productId],
+                            product.frontPhotoRef?.let(photoPaths::get),
+                        )
                     },
                     logged = portion,
                 )
@@ -229,6 +243,9 @@ class MealRepository @Inject constructor(
             // Never drop a barcode already on the row: a product first entered by hand and
             // later scanned gains one, and re-saving from the sheet must not erase it.
             barcode = barcode ?: existing?.barcode,
+            // Photos carry over the same way — a confirm-sheet re-save must not strip them.
+            frontPhotoRef = existing?.frontPhotoRef,
+            backPhotoRef = existing?.backPhotoRef,
             source = source,
             createdAt = existing?.createdAt ?: now,
             lastUsedAt = existing?.lastUsedAt,
@@ -251,6 +268,33 @@ class MealRepository @Inject constructor(
         }
         return productId
     }
+
+    /**
+     * Scan pre-check: the product a barcode already belongs to.
+     *
+     * The scan flow asks this before touching the network so a re-scan gets an "already in
+     * your foods" sheet instead of silently upserting the same row.
+     */
+    suspend fun productForBarcode(barcode: String): ExistingProduct? {
+        val product = productDao.findByBarcode(barcode) ?: return null
+        val per100 = NutrientTotals(
+            productDao.getNutrients(product.productId)
+                .associate { it.nutrientKey to it.amountPer100g },
+        )
+        return ExistingProduct(
+            productId = product.productId,
+            brand = product.brand,
+            productName = product.productName,
+            source = product.source,
+            per100g = Per100g(
+                kcal = per100[NutrientKeys.ENERGY_KCAL],
+                protein = per100[NutrientKeys.PROTEIN_G],
+                carbs = per100[NutrientKeys.CARBS_G],
+                fat = per100[NutrientKeys.FAT_G],
+            ),
+            per100gLine = per100gLine(per100),
+        )
+    }
 }
 
 /**
@@ -264,6 +308,7 @@ private fun brandOption(
     product: ProductEntity,
     nutrients: List<ProductNutrientEntity>,
     meta: dev.rishabh.dailytracker.core.db.entity.GenericFoodMetaEntity?,
+    photoPath: String?,
 ): BrandOption {
     val isGeneric = meta != null
     val per100 = NutrientTotals(nutrients.associate { it.nutrientKey to it.amountPer100g })
@@ -287,5 +332,6 @@ private fun brandOption(
         servingUnit = meta?.servingUnit,
         unitLabel = meta?.unitLabel,
         gramsPerUnit = meta?.gramsPerUnit,
+        photoPath = photoPath,
     )
 }

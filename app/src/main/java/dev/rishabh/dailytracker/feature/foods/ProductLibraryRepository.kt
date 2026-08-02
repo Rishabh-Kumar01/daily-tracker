@@ -1,6 +1,7 @@
 package dev.rishabh.dailytracker.feature.foods
 
 import dev.rishabh.dailytracker.core.db.NutrientKeys
+import dev.rishabh.dailytracker.core.db.dao.MediaDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
 import dev.rishabh.dailytracker.core.db.entity.ProductEntity
 import dev.rishabh.dailytracker.core.db.entity.ProductNutrientEntity
@@ -22,6 +23,7 @@ import javax.inject.Singleton
 @Singleton
 class ProductLibraryRepository @Inject constructor(
     private val productDao: ProductDao,
+    private val mediaDao: MediaDao,
 ) {
 
     /** Active products matching [query] (blank = all), each with its formatted macro line. */
@@ -33,7 +35,14 @@ class ProductLibraryRepository @Inject constructor(
         }
         return combine(products, productDao.observeAllNutrients()) { rows, nutrients ->
             val byProduct = nutrients.groupBy { it.productId }
-            rows.map { it.toCard(byProduct[it.productId].orEmpty()) }
+            // Front photos resolve in one bulk read; a photo attach re-emits the product
+            // (front_photo_ref lives on it), so this stays fresh without observing media.
+            val photoPaths = rows.mapNotNull { it.frontPhotoRef }
+                .takeIf { it.isNotEmpty() }
+                ?.let { mediaDao.getByIds(it) }
+                .orEmpty()
+                .associate { it.mediaId to it.filePath }
+            rows.map { it.toCard(byProduct[it.productId].orEmpty(), it.frontPhotoRef?.let(photoPaths::get)) }
         }
     }
 
@@ -67,7 +76,7 @@ class ProductLibraryRepository @Inject constructor(
     /** Soft-delete: hides the product from pickers and search, history stays resolvable. */
     suspend fun archive(productId: String) = productDao.setArchived(productId, archived = true)
 
-    private fun ProductEntity.toCard(nutrients: List<ProductNutrientEntity>): ProductCard {
+    private fun ProductEntity.toCard(nutrients: List<ProductNutrientEntity>, photoPath: String?): ProductCard {
         val per100 = NutrientTotals(nutrients.associate { it.nutrientKey to it.amountPer100g })
         return ProductCard(
             productId = productId,
@@ -76,6 +85,7 @@ class ProductLibraryRepository @Inject constructor(
             isGeneric = brand == null,
             per100gLine = per100gLine(per100),
             per100g = per100,
+            photoPath = photoPath,
         )
     }
 

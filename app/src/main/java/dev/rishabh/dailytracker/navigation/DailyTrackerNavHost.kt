@@ -1,7 +1,9 @@
 package dev.rishabh.dailytracker.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -54,18 +56,42 @@ fun DailyTrackerNavHost(
         composable(
             route = Routes.SUB_MENU,
             arguments = listOf(navArgument(Routes.ARG_SUB_MENU_ID) { type = NavType.StringType }),
-        ) {
+        ) { backStackEntry ->
+            // "Log it now" from the scanner arrives through this entry's savedStateHandle;
+            // the meal screen turns it into an open portion sheet, then it's consumed.
+            val scanLogItemId by backStackEntry.savedStateHandle
+                .getStateFlow<String?>(Routes.SCAN_LOG_ITEM_ID, null)
+                .collectAsStateWithLifecycle()
+            val scanLogProductId by backStackEntry.savedStateHandle
+                .getStateFlow<String?>(Routes.SCAN_LOG_PRODUCT_ID, null)
+                .collectAsStateWithLifecycle()
             SubMenuScreen(
                 onBack = { navController.popBackStack() },
                 onScanClick = { itemId -> navController.navigate(Routes.scan(itemId)) },
+                pendingScanLogItemId = scanLogItemId,
+                pendingScanLogProductId = scanLogProductId,
+                onScanLogConsumed = {
+                    backStackEntry.savedStateHandle.remove<String>(Routes.SCAN_LOG_ITEM_ID)
+                    backStackEntry.savedStateHandle.remove<String>(Routes.SCAN_LOG_PRODUCT_ID)
+                },
             )
         }
 
         composable(
             route = Routes.SCAN,
             arguments = listOf(navArgument(Routes.ARG_ITEM_ID) { type = NavType.StringType }),
-        ) {
-            ScanScreen(onBack = { navController.popBackStack() })
+        ) { backStackEntry ->
+            val itemId = backStackEntry.arguments?.getString(Routes.ARG_ITEM_ID).orEmpty()
+            ScanScreen(
+                onBack = { navController.popBackStack() },
+                onLogExisting = { productId ->
+                    navController.previousBackStackEntry?.savedStateHandle?.apply {
+                        set(Routes.SCAN_LOG_ITEM_ID, itemId)
+                        set(Routes.SCAN_LOG_PRODUCT_ID, productId)
+                    }
+                    navController.popBackStack()
+                },
+            )
         }
     }
 }

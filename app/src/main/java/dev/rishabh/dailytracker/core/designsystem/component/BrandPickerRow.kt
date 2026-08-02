@@ -43,6 +43,7 @@ import dev.rishabh.dailytracker.core.designsystem.Radius
 import dev.rishabh.dailytracker.core.designsystem.Spacing
 import dev.rishabh.dailytracker.core.designsystem.Surface2
 import dev.rishabh.dailytracker.core.designsystem.Surface3
+import java.io.File
 
 /**
  * Product row for picking a branded or generic food: thumbnail, brand caption (or food name for
@@ -155,7 +156,8 @@ private fun Thumbnail(url: String?) {
     val shape = RoundedCornerShape(Radius.sm)
     if (url != null) {
         AsyncImage(
-            model = url,
+            // A leading slash is an app-private file path, not a remote URL.
+            model = if (url.startsWith("/")) File(url) else url,
             contentDescription = null,
             modifier = Modifier.size(Dimens.thumbnail).clip(shape).background(Surface3),
         )

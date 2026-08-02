@@ -6,11 +6,13 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.rishabh.dailytracker.core.db.NutrientKeys
 import dev.rishabh.dailytracker.core.db.ProductSource
+import dev.rishabh.dailytracker.core.media.ProductPhotoStore
 import dev.rishabh.dailytracker.core.network.UsdaClient
 import dev.rishabh.dailytracker.core.network.UsdaFood
 import dev.rishabh.dailytracker.core.network.UsdaResult
 import dev.rishabh.dailytracker.core.settings.UsdaKeyStore
 import dev.rishabh.dailytracker.navigation.Routes
+import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +35,11 @@ sealed interface MealSheet {
         val usda: UsdaSearchState = UsdaSearchState(),
         /** True when [input] came from a picked USDA food — the save is then tagged source=usda. */
         val fromUsda: Boolean = false,
+        /**
+         * Temp file of a captured front photo. The product doesn't exist until Save, so the
+         * photo waits here and attaches in [MealViewModel.onConfirmManualProduct].
+         */
+        val pendingPhotoPath: String? = null,
     ) : MealSheet
 }
 
@@ -62,6 +69,7 @@ class MealViewModel @Inject constructor(
     private val repository: MealRepository,
     private val usdaClient: UsdaClient,
     private val usdaKeyStore: UsdaKeyStore,
+    private val photoStore: ProductPhotoStore,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -98,8 +106,30 @@ class MealViewModel @Inject constructor(
         uiState.update { it.copy(sheet = MealSheet.ManualProduct(itemId)) }
     }
 
+    /** Scan hand-off: the re-scanned product is already saved, so open its portion sheet. */
+    fun onScanLogRequest(itemId: String, productId: String) {
+        uiState.update { it.copy(sheet = MealSheet.Quantity(itemId, productId)) }
+    }
+
     fun onDismissSheet() {
+        val sheet = state.value.sheet
         uiState.update { it.copy(sheet = null) }
+        // A pending photo whose sheet is dismissed never became a product photo — drop it.
+        val pending = (sheet as? MealSheet.ManualProduct)?.pendingPhotoPath ?: return
+        viewModelScope.launch { photoStore.discard(pending) }
+    }
+
+    /**
+     * A photo captured from the manual-add sheet waits as a temp file until Save — the
+     * product it belongs to doesn't exist yet. A retake replaces (and deletes) the earlier
+     * temp file.
+     */
+    fun onManualPhotoCaptured(capturePath: String) {
+        val previous = (state.value.sheet as? MealSheet.ManualProduct)?.pendingPhotoPath
+        updateManual { it.copy(pendingPhotoPath = capturePath) }
+        if (previous != null && previous != capturePath) {
+            viewModelScope.launch { photoStore.discard(previous) }
+        }
     }
 
     fun onToggleSearch() {
@@ -156,6 +186,8 @@ class MealViewModel @Inject constructor(
             is ProductValidation.Valid -> viewModelScope.launch {
                 val source = if (sheet.fromUsda) ProductSource.USDA else ProductSource.MANUAL
                 val productId = repository.createManualProduct(item.genericName, result.product, source = source)
+                // The photo was captured before the product existed, so it attaches now.
+                sheet.pendingPhotoPath?.let { photoStore.attachCapture(productId, File(it)) }
                 uiState.update { it.copy(sheet = MealSheet.Quantity(item.itemId, productId)) }
             }
         }

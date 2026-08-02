@@ -10,6 +10,7 @@ import dev.rishabh.dailytracker.core.db.DailyTrackerDatabase
 import dev.rishabh.dailytracker.core.db.FakeIdGenerator
 import dev.rishabh.dailytracker.core.db.FakeTimeSource
 import dev.rishabh.dailytracker.core.db.FieldType
+import dev.rishabh.dailytracker.core.db.MediaType
 import dev.rishabh.dailytracker.core.db.NutrientKeys
 import dev.rishabh.dailytracker.core.db.ProductSource
 import dev.rishabh.dailytracker.core.db.VariantSource
@@ -17,9 +18,12 @@ import dev.rishabh.dailytracker.core.db.entity.ActivityTemplateEntity
 import dev.rishabh.dailytracker.core.db.entity.ItemEntity
 import dev.rishabh.dailytracker.core.db.entity.ItemFieldEntity
 import dev.rishabh.dailytracker.core.db.entity.SubMenuEntity
+import dev.rishabh.dailytracker.core.media.ProductPhotoStore
 import dev.rishabh.dailytracker.core.network.OpenFoodFactsClient
 import dev.rishabh.dailytracker.feature.diet.MealRepository
+import dev.rishabh.dailytracker.feature.diet.ValidatedProduct
 import dev.rishabh.dailytracker.navigation.Routes
+import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -64,7 +68,7 @@ class ScanFlowTest {
         server.start()
 
         repository = MealRepository(
-            db.templateDao(), db.logDao(), db.productDao(), db.genericFoodMetaDao(), FakeIdGenerator(), FakeTimeSource(),
+            db.templateDao(), db.logDao(), db.productDao(), db.genericFoodMetaDao(), db.mediaDao(), FakeIdGenerator(), FakeTimeSource(),
         )
         client = OpenFoodFactsClient(
             callFactory = OkHttpClient(),
@@ -92,6 +96,14 @@ class ScanFlowTest {
     private fun viewModel() = ScanViewModel(
         repository = repository,
         client = client,
+        photoStore = ProductPhotoStore(
+            context = ApplicationProvider.getApplicationContext(),
+            callFactory = OkHttpClient(),
+            mediaDao = db.mediaDao(),
+            productDao = db.productDao(),
+            ids = FakeIdGenerator(prefix = "media"),
+            time = FakeTimeSource(),
+        ),
         savedStateHandle = SavedStateHandle(mapOf(Routes.ARG_ITEM_ID to "i1")),
     )
 
@@ -234,5 +246,81 @@ class ScanFlowTest {
 
         vm.await<ScanState.Confirm>()
         assertThat(server.requestCount).isEqualTo(1)
+    }
+
+    @Test
+    fun rescanning_a_saved_barcode_shows_already_saved_without_a_network_call() = runBlocking {
+        repository.createManualProduct(
+            genericName = "butter",
+            product = ValidatedProduct(
+                "Amul", "Butter School Pack",
+                mapOf(NutrientKeys.ENERGY_KCAL to 724.0, NutrientKeys.FAT_G to 80.0),
+            ),
+            barcode = "8901262010207",
+            source = ProductSource.OFF,
+        )
+        val vm = viewModel()
+
+        vm.onBarcodeDetected("8901262010207")
+
+        val state = vm.await<ScanState.AlreadySaved>()
+        assertThat(state.product.productName).isEqualTo("Butter School Pack")
+        assertThat(state.product.brand).isEqualTo("Amul")
+        assertThat(state.product.per100g.kcal).isEqualTo(724.0)
+        // The pre-check short-circuits before Open Food Facts is ever asked.
+        assertThat(server.requestCount).isEqualTo(0)
+    }
+
+    @Test
+    fun adjust_from_already_saved_prefills_the_confirm_sheet() = runBlocking {
+        repository.createManualProduct(
+            genericName = "butter",
+            product = ValidatedProduct("Amul", "Butter School Pack", mapOf(NutrientKeys.ENERGY_KCAL to 724.0)),
+            barcode = "8901262010207",
+            source = ProductSource.OFF,
+        )
+        val vm = viewModel()
+        vm.onBarcodeDetected("8901262010207")
+        vm.await<ScanState.AlreadySaved>()
+
+        vm.onAdjustExisting()
+
+        // Synchronous — the state swap happens on the call itself.
+        val state = vm.state.value as ScanState.Confirm
+        assertThat(state.barcode).isEqualTo("8901262010207")
+        assertThat(state.source).isEqualTo(ProductSource.OFF)
+        assertThat(state.input.brand).isEqualTo("Amul")
+        assertThat(state.input.productName).isEqualTo("Butter School Pack")
+        assertThat(state.input.kcal).isEqualTo("724")
+    }
+
+    @Test
+    fun a_hit_with_an_image_attaches_it_as_the_front_photo_on_save() = runBlocking {
+        val imageUrl = server.url("/front.jpg").toString()
+        server.enqueue(
+            MockResponse(
+                code = 200,
+                body = """
+                    {"code":"8901262010207","status":1,"product":{
+                      "brands":"Amul","product_name":"Butter School Pack",
+                      "image_front_small_url":"$imageUrl",
+                      "nutriments":{"energy-kcal_100g":724}}}
+                """.trimIndent(),
+            ),
+        )
+        server.enqueue(MockResponse(code = 200, body = "image-bytes"))
+        val vm = viewModel()
+        vm.onBarcodeDetected("8901262010207")
+        val confirm = vm.await<ScanState.Confirm>()
+        assertThat(confirm.imageUrl).isEqualTo(imageUrl)
+
+        vm.onSave()
+
+        val productId = vm.awaitSavedProductId()
+        val product = checkNotNull(db.productDao().getProduct(productId))
+        val media = checkNotNull(db.mediaDao().getById(checkNotNull(product.frontPhotoRef)))
+        assertThat(media.type).isEqualTo(MediaType.PRODUCT_FRONT)
+        assertThat(media.sensitive).isFalse()
+        assertThat(File(media.filePath).readText()).isEqualTo("image-bytes")
     }
 }

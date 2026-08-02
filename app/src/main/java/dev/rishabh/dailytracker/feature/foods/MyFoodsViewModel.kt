@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.rishabh.dailytracker.core.db.NutrientKeys
+import dev.rishabh.dailytracker.core.media.ProductPhotoStore
 import dev.rishabh.dailytracker.core.nutrition.NutrientTotals
 import dev.rishabh.dailytracker.feature.diet.ManualProductInput
 import dev.rishabh.dailytracker.feature.diet.ProductValidation
 import dev.rishabh.dailytracker.feature.diet.validateManualProduct
+import java.io.File
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -27,6 +29,7 @@ import javax.inject.Inject
 @HiltViewModel
 class MyFoodsViewModel @Inject constructor(
     private val repository: ProductLibraryRepository,
+    private val photoStore: ProductPhotoStore,
 ) : ViewModel() {
 
     /** Everything the UI drives directly; the product list is derived from [LocalState.query]. */
@@ -65,7 +68,21 @@ class MyFoodsViewModel @Inject constructor(
 
     // --- Edit ---
 
-    fun onEdit(card: ProductCard) = local.update { it.copy(edit = EditSheet(card.productId, card.toInput())) }
+    fun onEdit(card: ProductCard) = local.update {
+        it.copy(edit = EditSheet(card.productId, card.toInput(), photoPath = card.photoPath))
+    }
+
+    /**
+     * The product already exists here, so a captured photo attaches immediately — the sheet
+     * just swaps to showing the stored copy.
+     */
+    fun onEditPhotoCaptured(capturePath: String) {
+        val sheet = local.value.edit ?: return
+        viewModelScope.launch {
+            val stored = photoStore.attachCapture(sheet.productId, File(capturePath)) ?: return@launch
+            local.update { it.copy(edit = it.edit?.copy(photoPath = stored)) }
+        }
+    }
 
     fun onEditFieldChange(index: Int, value: String) = local.update {
         it.copy(edit = it.edit?.copy(input = it.edit.input.withFieldAt(index, value), error = null))

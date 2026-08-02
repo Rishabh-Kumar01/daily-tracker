@@ -68,6 +68,7 @@ import dev.rishabh.dailytracker.feature.diet.ManualProductInput
 @Composable
 fun ScanScreen(
     onBack: () -> Unit,
+    onLogExisting: (productId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ScanViewModel = hiltViewModel(),
 ) {
@@ -115,6 +116,8 @@ fun ScanScreen(
                             onRescan = viewModel::onRescan,
                             onFieldChange = viewModel::onFieldChange,
                             onSave = viewModel::onSave,
+                            onAdjustExisting = viewModel::onAdjustExisting,
+                            onLogExisting = onLogExisting,
                         )
                     }
                 }
@@ -132,6 +135,8 @@ private fun ScanContent(
     onRescan: () -> Unit,
     onFieldChange: (Int, String) -> Unit,
     onSave: () -> Unit,
+    onAdjustExisting: () -> Unit,
+    onLogExisting: (String) -> Unit,
 ) {
     when (state) {
         ScanState.Scanning -> Box(Modifier.fillMaxSize()) {
@@ -175,6 +180,34 @@ private fun ScanContent(
                 AccentButton("Enter manually", accent = DailyTrackerTheme.accent.base) {
                     onEnterManually(state.barcode)
                 }
+            }
+        }
+
+        is ScanState.AlreadySaved -> Centered {
+            Text("Already in your foods", style = MaterialTheme.typography.titleLarge, color = OnSurface)
+            Text(
+                listOfNotNull(state.product.brand, state.product.productName).joinToString(" · "),
+                style = MaterialTheme.typography.bodyLarge,
+                color = OnSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = Spacing.sp2),
+            )
+            Text(
+                state.product.per100gLine,
+                style = MaterialTheme.typography.bodyMedium,
+                color = OnSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = Spacing.sp1, bottom = Spacing.sp4),
+            )
+            AccentButton("Log it now", accent = DailyTrackerTheme.accent.base) {
+                onLogExisting(state.product.productId)
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sp3),
+                modifier = Modifier.padding(top = Spacing.sp3),
+            ) {
+                OutlineButton("Adjust", onClick = onAdjustExisting)
+                OutlineButton("Rescan", onClick = onRescan)
             }
         }
 
@@ -302,6 +335,7 @@ private fun ScanConfirmPreview() {
                 ),
                 onBarcode = {}, onRetry = {}, onEnterManually = {}, onRescan = {},
                 onFieldChange = { _, _ -> }, onSave = {},
+                onAdjustExisting = {}, onLogExisting = {},
             )
         }
     }
