@@ -7,11 +7,15 @@ import dev.rishabh.dailytracker.core.db.NutrientKeys
 import dev.rishabh.dailytracker.core.db.ProductSource
 import dev.rishabh.dailytracker.core.db.dao.GenericFoodMetaDao
 import dev.rishabh.dailytracker.core.db.dao.LogDao
+import dev.rishabh.dailytracker.core.db.dao.MealTemplateDao
+import dev.rishabh.dailytracker.core.db.dao.MealTemplateSummary
 import dev.rishabh.dailytracker.core.db.dao.MediaDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
 import dev.rishabh.dailytracker.core.db.entity.LogEntryEntity
 import dev.rishabh.dailytracker.core.db.entity.LogValueEntity
+import dev.rishabh.dailytracker.core.db.entity.MealTemplateEntity
+import dev.rishabh.dailytracker.core.db.entity.MealTemplateItemEntity
 import dev.rishabh.dailytracker.core.db.entity.ProductEntity
 import dev.rishabh.dailytracker.core.db.entity.ProductNutrientEntity
 import dev.rishabh.dailytracker.core.designsystem.accentKeyForColor
@@ -42,6 +46,7 @@ class MealRepository @Inject constructor(
     private val productDao: ProductDao,
     private val genericFoodMetaDao: GenericFoodMetaDao,
     private val mediaDao: MediaDao,
+    private val mealTemplateDao: MealTemplateDao,
     private val ids: IdGenerator,
     private val time: TimeSource,
 ) {
@@ -295,6 +300,108 @@ class MealRepository @Inject constructor(
             per100gLine = per100gLine(per100),
         )
     }
+
+    // --- Meal templates ("my usual breakfast") ---
+
+    /** The saved templates for this meal, live, each with its food-line count. */
+    fun observeMealTemplates(subMenuId: String): Flow<List<MealTemplateSummary>> =
+        mealTemplateDao.observeForSubMenu(subMenuId)
+
+    /**
+     * Snapshots the meal's currently-logged portions into a new named template.
+     *
+     * Only logged foods are captured — the template records which product and how many
+     * grams for each item, nothing computed. Returns null when nothing is logged to save.
+     */
+    suspend fun saveMealAsTemplate(subMenuId: String, name: String): String? {
+        val today = time.today()
+        val logged = logDao.getProductQuantitiesForSubMenuDay(subMenuId, today)
+            .mapNotNull { q ->
+                val productId = q.productId ?: return@mapNotNull null
+                val grams = q.grams ?: return@mapNotNull null
+                Triple(q.itemId, productId, grams)
+            }
+        if (logged.isEmpty()) return null
+        val templateId = ids.newId()
+        val template = MealTemplateEntity(
+            mealTemplateId = templateId,
+            subMenuId = subMenuId,
+            name = name.trim(),
+            createdAt = time.nowMillis(),
+        )
+        val items = logged.map { (itemId, productId, grams) ->
+            MealTemplateItemEntity(
+                id = ids.newId(),
+                mealTemplateId = templateId,
+                itemId = itemId,
+                productId = productId,
+                grams = grams,
+            )
+        }
+        mealTemplateDao.insertTemplateWithItems(template, items)
+        return templateId
+    }
+
+    /**
+     * Logs every food in a template for today in one transaction.
+     *
+     * Each templated item replaces whatever that item already has logged for the meal today,
+     * so tapping a template twice re-logs rather than doubling. The whole meal commits
+     * atomically — a template must never land half-logged.
+     */
+    suspend fun logMealTemplate(mealTemplateId: String) {
+        val template = mealTemplateDao.getTemplate(mealTemplateId) ?: return
+        val templateItems = mealTemplateDao.getItems(mealTemplateId)
+        if (templateItems.isEmpty()) return
+        val subMenu = templateDao.getSubMenu(template.subMenuId) ?: return
+        val today = time.today()
+        val now = time.nowMillis()
+        val localDate = time.localDateOf(now)
+
+        val fieldsByItem = templateDao.getFieldsForSubMenu(subMenu.subMenuId).groupBy { it.itemId }
+        val templatedItemIds = templateItems.map { it.itemId }.toSet()
+        val replacedEntryIds = logDao.getEntriesForSubMenuDay(subMenu.subMenuId, today)
+            .filter { it.itemId in templatedItemIds }
+            .map { it.entryId }
+
+        val entries = ArrayList<LogEntryEntity>(templateItems.size)
+        val values = ArrayList<LogValueEntity>(templateItems.size * 2)
+        for (ti in templateItems) {
+            val itemFields = fieldsByItem[ti.itemId].orEmpty()
+            val entryId = ids.newId()
+            entries += LogEntryEntity(
+                entryId = entryId,
+                templateId = subMenu.templateId,
+                subMenuId = subMenu.subMenuId,
+                itemId = ti.itemId,
+                loggedAt = now,
+                localDate = localDate,
+                variantRef = ti.productId,
+            )
+            itemFields.firstOrNull { it.type == FieldType.QUANTITY.wire }?.let { field ->
+                values += LogValueEntity(
+                    valueId = ids.newId(),
+                    entryId = entryId,
+                    fieldKey = field.fieldKey,
+                    valueNumber = ti.grams,
+                )
+            }
+            itemFields.firstOrNull { it.type == FieldType.ITEM_VARIANT.wire }?.let { field ->
+                values += LogValueEntity(
+                    valueId = ids.newId(),
+                    entryId = entryId,
+                    fieldKey = field.fieldKey,
+                    valueText = ti.productId,
+                )
+            }
+        }
+        logDao.replaceLogs(replacedEntryIds, entries, values)
+        templateItems.forEach { productDao.touch(it.productId, now) }
+    }
+
+    /** Removes a saved template (its items cascade). Logged history is untouched. */
+    suspend fun deleteMealTemplate(mealTemplateId: String) =
+        mealTemplateDao.deleteTemplate(mealTemplateId)
 }
 
 /**

@@ -2,6 +2,7 @@ package dev.rishabh.dailytracker.feature.diet
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,8 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -65,6 +68,7 @@ import dev.rishabh.dailytracker.core.designsystem.Radius
 import dev.rishabh.dailytracker.core.designsystem.Scrim
 import dev.rishabh.dailytracker.core.designsystem.Spacing
 import dev.rishabh.dailytracker.core.designsystem.Surface2
+import dev.rishabh.dailytracker.core.designsystem.Surface3
 import dev.rishabh.dailytracker.core.designsystem.TypeNumeric
 import dev.rishabh.dailytracker.core.designsystem.component.AccentButton
 import dev.rishabh.dailytracker.core.designsystem.component.BackTopBar
@@ -77,6 +81,7 @@ import dev.rishabh.dailytracker.core.designsystem.component.Per100g
 import dev.rishabh.dailytracker.core.designsystem.component.QuantitySheet
 import dev.rishabh.dailytracker.core.designsystem.component.ServingUnit
 import dev.rishabh.dailytracker.core.db.NutrientKeys
+import dev.rishabh.dailytracker.core.db.dao.MealTemplateSummary
 import dev.rishabh.dailytracker.core.network.UsdaFood
 import dev.rishabh.dailytracker.core.nutrition.NutrientTotals
 import dev.rishabh.dailytracker.core.nutrition.kcalLabel
@@ -127,6 +132,11 @@ fun MealScreen(
             onQueryChange = viewModel::onQueryChange,
             onConfirmQuantity = viewModel::onConfirmQuantity,
             onRemovePortion = viewModel::onRemovePortion,
+            onLogTemplate = viewModel::onLogTemplate,
+            onSaveAsTemplate = viewModel::onSaveMealAsTemplateClick,
+            onSaveTemplateNameChange = viewModel::onSaveTemplateNameChange,
+            onConfirmSaveTemplate = viewModel::onConfirmSaveTemplate,
+            onDismissSaveTemplate = viewModel::onDismissSaveTemplate,
             onManualFieldChange = viewModel::onManualFieldChange,
             onConfirmManualProduct = viewModel::onConfirmManualProduct,
             onDismissSheet = viewModel::onDismissSheet,
@@ -163,6 +173,11 @@ internal fun MealContent(
     onQueryChange: (String) -> Unit,
     onConfirmQuantity: (itemId: String, productId: String, grams: Double) -> Unit,
     onRemovePortion: (itemId: String) -> Unit,
+    onLogTemplate: (mealTemplateId: String) -> Unit = {},
+    onSaveAsTemplate: () -> Unit = {},
+    onSaveTemplateNameChange: (String) -> Unit = {},
+    onConfirmSaveTemplate: () -> Unit = {},
+    onDismissSaveTemplate: () -> Unit = {},
     onManualFieldChange: (Int, String) -> Unit,
     onConfirmManualProduct: () -> Unit,
     onDismissSheet: () -> Unit,
@@ -201,6 +216,14 @@ internal fun MealContent(
                     if (state.searchOpen) {
                         SearchField(query = state.query, accent = accent, onQueryChange = onQueryChange)
                     }
+
+                    UsualMealsRow(
+                        templates = state.templates,
+                        canSave = detail?.items?.any { it.logged != null } == true,
+                        accent = accent,
+                        onLogTemplate = onLogTemplate,
+                        onSaveAsTemplate = onSaveAsTemplate,
+                    )
 
                     SectionLabel("Frequent")
 
@@ -278,6 +301,17 @@ internal fun MealContent(
                             )
                         }
                     }
+                }
+
+                val saveName = state.saveTemplateName
+                if (saveName != null) {
+                    SaveTemplateDialog(
+                        name = saveName,
+                        accent = accent,
+                        onNameChange = onSaveTemplateNameChange,
+                        onConfirm = onConfirmSaveTemplate,
+                        onCancel = onDismissSaveTemplate,
+                    )
                 }
             }
         }
@@ -740,6 +774,138 @@ private fun suffixFor(label: String): String? = when (label) {
     "kcal" -> "/100g"
     "Protein", "Carbs", "Fat" -> "g/100g"
     else -> null
+}
+
+/**
+ * The saved "usual meals" for this meal, as tappable chips, plus a save-current affordance.
+ *
+ * One tap on a chip re-logs that whole template for today. "Save as usual" only appears once
+ * something is logged — there is nothing to snapshot from an empty meal. The whole row hides
+ * when there is neither a saved template nor anything to save.
+ */
+@Composable
+private fun UsualMealsRow(
+    templates: List<MealTemplateSummary>,
+    canSave: Boolean,
+    accent: AccentColors,
+    onLogTemplate: (String) -> Unit,
+    onSaveAsTemplate: () -> Unit,
+) {
+    if (templates.isEmpty() && !canSave) return
+    Column {
+        SectionLabel("Usual meals")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = Spacing.sp4),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sp2),
+        ) {
+            for (template in templates) {
+                UsualMealChip(
+                    label = template.name,
+                    icon = Icons.Rounded.Bookmark,
+                    filled = true,
+                    accent = accent,
+                    onClick = { onLogTemplate(template.mealTemplateId) },
+                )
+            }
+            if (canSave) {
+                UsualMealChip(
+                    label = "Save as usual",
+                    icon = Icons.Rounded.BookmarkAdd,
+                    filled = false,
+                    accent = accent,
+                    onClick = onSaveAsTemplate,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UsualMealChip(
+    label: String,
+    icon: ImageVector,
+    filled: Boolean,
+    accent: AccentColors,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(Radius.lg))
+            .background(if (filled) accent.container else Surface2)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = Spacing.sp3, vertical = Spacing.sp2),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sp1 + 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (filled) accent.base else OnSurfaceVariant,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (filled) accent.base else OnSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}
+
+/** Names the current meal so it can be re-logged with one tap later. */
+@Composable
+private fun SaveTemplateDialog(
+    name: String,
+    accent: AccentColors,
+    onNameChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Scrim)
+            .clickable(role = Role.Button, onClick = onCancel),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(Spacing.sp6)
+                .clip(RoundedCornerShape(Radius.md))
+                .background(Surface3)
+                // Swallow taps so a press inside the card doesn't dismiss via the scrim.
+                .clickable(enabled = false) {}
+                .padding(Spacing.sp5),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sp3),
+        ) {
+            Text("Save as a usual meal", style = MaterialTheme.typography.titleMedium, color = OnSurface)
+            Text(
+                "Log this exact set of foods again with one tap.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = OnSurfaceVariant,
+            )
+            SheetInput(name, "e.g. My usual breakfast", accent, onNameChange)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.sp2),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sp3, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Cancel",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = OnSurfaceVariant,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(Radius.md))
+                        .clickable(role = Role.Button, onClick = onCancel)
+                        .padding(horizontal = Spacing.sp4, vertical = Spacing.sp2),
+                )
+                AccentButton("Save", accent = accent.base, onClick = onConfirm)
+            }
+        }
+    }
 }
 
 private const val DEFAULT_PORTION_GRAMS = 100.0

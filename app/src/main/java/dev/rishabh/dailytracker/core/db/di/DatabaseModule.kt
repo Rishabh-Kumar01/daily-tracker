@@ -15,6 +15,7 @@ import dev.rishabh.dailytracker.core.common.UuidGenerator
 import dev.rishabh.dailytracker.core.db.DailyTrackerDatabase
 import dev.rishabh.dailytracker.core.db.dao.GenericFoodMetaDao
 import dev.rishabh.dailytracker.core.db.dao.LogDao
+import dev.rishabh.dailytracker.core.db.dao.MealTemplateDao
 import dev.rishabh.dailytracker.core.db.dao.MediaDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
@@ -35,6 +36,7 @@ object DatabaseModule {
                 DailyTrackerDatabase.MIGRATION_1_2,
                 DailyTrackerDatabase.MIGRATION_2_3,
                 DailyTrackerDatabase.MIGRATION_3_4,
+                DailyTrackerDatabase.MIGRATION_4_5,
             )
             .build()
 
@@ -52,6 +54,9 @@ object DatabaseModule {
 
     @Provides
     fun provideMediaDao(db: DailyTrackerDatabase): MediaDao = db.mediaDao()
+
+    @Provides
+    fun provideMealTemplateDao(db: DailyTrackerDatabase): MealTemplateDao = db.mealTemplateDao()
 }
 
 @Module

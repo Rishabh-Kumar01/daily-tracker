@@ -68,7 +68,7 @@ class ScanFlowTest {
         server.start()
 
         repository = MealRepository(
-            db.templateDao(), db.logDao(), db.productDao(), db.genericFoodMetaDao(), db.mediaDao(), FakeIdGenerator(), FakeTimeSource(),
+            db.templateDao(), db.logDao(), db.productDao(), db.genericFoodMetaDao(), db.mediaDao(), db.mealTemplateDao(), FakeIdGenerator(), FakeTimeSource(),
         )
         client = OpenFoodFactsClient(
             callFactory = OkHttpClient(),

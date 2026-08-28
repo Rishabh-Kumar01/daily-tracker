@@ -7,6 +7,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.rishabh.dailytracker.core.db.dao.GenericFoodMetaDao
 import dev.rishabh.dailytracker.core.db.dao.LogDao
+import dev.rishabh.dailytracker.core.db.dao.MealTemplateDao
 import dev.rishabh.dailytracker.core.db.dao.MediaDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
@@ -19,6 +20,8 @@ import dev.rishabh.dailytracker.core.db.entity.ItemEntity
 import dev.rishabh.dailytracker.core.db.entity.ItemFieldEntity
 import dev.rishabh.dailytracker.core.db.entity.LogEntryEntity
 import dev.rishabh.dailytracker.core.db.entity.LogValueEntity
+import dev.rishabh.dailytracker.core.db.entity.MealTemplateEntity
+import dev.rishabh.dailytracker.core.db.entity.MealTemplateItemEntity
 import dev.rishabh.dailytracker.core.db.entity.MediaEntity
 import dev.rishabh.dailytracker.core.db.entity.ProductEntity
 import dev.rishabh.dailytracker.core.db.entity.ProductNutrientEntity
@@ -45,6 +48,9 @@ import dev.rishabh.dailytracker.core.db.entity.UserProfileEntity
         // Log side
         LogEntryEntity::class,
         LogValueEntity::class,
+        // Diet shortcuts
+        MealTemplateEntity::class,
+        MealTemplateItemEntity::class,
         // Food
         ProductEntity::class,
         ProductNutrientEntity::class,
@@ -64,7 +70,7 @@ import dev.rishabh.dailytracker.core.db.entity.UserProfileEntity
         AiJobEntity::class,
         ProviderQuotaEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -74,6 +80,7 @@ abstract class DailyTrackerDatabase : RoomDatabase() {
     abstract fun productDao(): ProductDao
     abstract fun genericFoodMetaDao(): GenericFoodMetaDao
     abstract fun mediaDao(): MediaDao
+    abstract fun mealTemplateDao(): MealTemplateDao
 
     companion object {
         const val NAME = "daily_tracker.db"
@@ -134,6 +141,47 @@ abstract class DailyTrackerDatabase : RoomDatabase() {
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE products ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /**
+         * Migration 4 → 5: adds the meal-template tables for one-tap "usual meal" logging.
+         *
+         * Purely additive — two new tables, no change to existing rows. A template stores
+         * which product and how many grams for each item slot; logging one still writes
+         * ordinary log_entries/log_values, so nothing downstream changes.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS meal_templates (
+                        meal_template_id TEXT NOT NULL PRIMARY KEY,
+                        sub_menu_id TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        FOREIGN KEY (sub_menu_id) REFERENCES sub_menus(sub_menu_id) ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_templates_sub_menu_id ON meal_templates(sub_menu_id)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS meal_template_items (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        meal_template_id TEXT NOT NULL,
+                        item_id TEXT NOT NULL,
+                        product_id TEXT NOT NULL,
+                        grams REAL NOT NULL,
+                        FOREIGN KEY (meal_template_id) REFERENCES meal_templates(meal_template_id) ON DELETE CASCADE,
+                        FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE NO ACTION,
+                        FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE NO ACTION
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_template_items_meal_template_id ON meal_template_items(meal_template_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_template_items_item_id ON meal_template_items(item_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_template_items_product_id ON meal_template_items(product_id)")
             }
         }
     }

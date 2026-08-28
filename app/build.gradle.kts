@@ -47,6 +47,14 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+
+    // The exported Room schemas ship as instrumentation assets so MigrationTestHelper can
+    // open a real database at an old version and drive the migration under test.
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDirs("$projectDir/schemas")
+        }
+    }
 }
 
 kotlin {

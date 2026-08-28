@@ -63,6 +63,15 @@ interface LogDao {
     )
     fun observeEntriesForSubMenuDay(subMenuId: String, localDate: String): Flow<List<LogEntryEntity>>
 
+    @Query(
+        """
+        SELECT * FROM log_entries
+        WHERE sub_menu_id = :subMenuId AND local_date = :localDate
+        ORDER BY logged_at
+        """,
+    )
+    suspend fun getEntriesForSubMenuDay(subMenuId: String, localDate: String): List<LogEntryEntity>
+
     @Query("SELECT * FROM log_values WHERE entry_id = :entryId")
     suspend fun getValues(entryId: String): List<LogValueEntity>
 
@@ -146,6 +155,28 @@ interface LogDao {
         localDate: String,
     ): Flow<List<LoggedQuantity>>
 
+    /** The one-shot snapshot version, used when saving the day's meal as a template. */
+    @Query(
+        """
+        SELECT e.entry_id AS entryId,
+               e.item_id AS itemId,
+               e.variant_ref AS productId,
+               v.field_key AS fieldKey,
+               v.value_number AS grams
+        FROM log_entries e
+        INNER JOIN log_values v ON v.entry_id = e.entry_id
+        INNER JOIN item_fields f ON f.item_id = e.item_id AND f.field_key = v.field_key
+        WHERE e.sub_menu_id = :subMenuId
+          AND e.local_date = :localDate
+          AND f.type = 'quantity'
+          AND e.variant_ref IS NOT NULL
+        """,
+    )
+    suspend fun getProductQuantitiesForSubMenuDay(
+        subMenuId: String,
+        localDate: String,
+    ): List<LoggedQuantity>
+
     /** The whole-activity equivalent — powers Home's Diet summary. */
     @Query(
         """
@@ -204,6 +235,24 @@ interface LogDao {
     suspend fun replaceLog(entry: LogEntryEntity, values: List<LogValueEntity>) {
         deleteEntry(entry.entryId)
         insertEntry(entry)
+        insertValues(values)
+    }
+
+    /**
+     * Logs a whole meal in one transaction: the portions it replaces are removed and every
+     * new entry with its values is inserted together.
+     *
+     * Used by one-tap template logging — a template must land as all-or-nothing, never as a
+     * half-logged meal if the app is killed mid-write.
+     */
+    @Transaction
+    suspend fun replaceLogs(
+        entryIdsToDelete: List<String>,
+        entries: List<LogEntryEntity>,
+        values: List<LogValueEntity>,
+    ) {
+        entryIdsToDelete.forEach { deleteEntry(it) }
+        entries.forEach { insertEntry(it) }
         insertValues(values)
     }
 }

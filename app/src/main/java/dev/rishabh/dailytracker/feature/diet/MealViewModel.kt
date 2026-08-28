@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.rishabh.dailytracker.core.db.NutrientKeys
 import dev.rishabh.dailytracker.core.db.ProductSource
+import dev.rishabh.dailytracker.core.db.dao.MealTemplateSummary
 import dev.rishabh.dailytracker.core.media.ProductPhotoStore
 import dev.rishabh.dailytracker.core.network.UsdaClient
 import dev.rishabh.dailytracker.core.network.UsdaFood
@@ -62,6 +63,10 @@ data class MealUiState(
     val searchOpen: Boolean = false,
     val query: String = "",
     val sheet: MealSheet? = null,
+    /** The meal's saved templates, from Room. */
+    val templates: List<MealTemplateSummary> = emptyList(),
+    /** Non-null while the "save as usual" name dialog is open; holds the editable name. */
+    val saveTemplateName: String? = null,
 )
 
 @HiltViewModel
@@ -78,8 +83,12 @@ class MealViewModel @Inject constructor(
     private val uiState = MutableStateFlow(MealUiState())
 
     val state: StateFlow<MealUiState> =
-        combine(repository.observeMeal(subMenuId), uiState) { detail, ui ->
-            ui.copy(detail = detail)
+        combine(
+            repository.observeMeal(subMenuId),
+            repository.observeMealTemplates(subMenuId),
+            uiState,
+        ) { detail, templates, ui ->
+            ui.copy(detail = detail, templates = templates)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MealUiState())
 
     /**
@@ -162,6 +171,37 @@ class MealViewModel @Inject constructor(
         viewModelScope.launch {
             repository.removePortion(entryId)
             uiState.update { it.copy(sheet = null) }
+        }
+    }
+
+    // --- Meal templates ("my usual breakfast") ---
+
+    /** One tap re-logs a saved meal for today. */
+    fun onLogTemplate(mealTemplateId: String) {
+        viewModelScope.launch { repository.logMealTemplate(mealTemplateId) }
+    }
+
+    /** Opens the name dialog, prefilled with a sensible default from the meal name. */
+    fun onSaveMealAsTemplateClick() {
+        val suggested = state.value.detail?.name?.let { "My usual $it" }.orEmpty()
+        uiState.update { it.copy(saveTemplateName = suggested) }
+    }
+
+    fun onSaveTemplateNameChange(value: String) {
+        uiState.update { if (it.saveTemplateName == null) it else it.copy(saveTemplateName = value) }
+    }
+
+    fun onDismissSaveTemplate() {
+        uiState.update { it.copy(saveTemplateName = null) }
+    }
+
+    /** Snapshots the meal's logged foods under the typed name; a blank name is a no-op. */
+    fun onConfirmSaveTemplate() {
+        val name = state.value.saveTemplateName?.trim().orEmpty()
+        if (name.isEmpty()) return
+        viewModelScope.launch {
+            repository.saveMealAsTemplate(subMenuId, name)
+            uiState.update { it.copy(saveTemplateName = null) }
         }
     }
 

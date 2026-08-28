@@ -47,7 +47,7 @@ class MealRepositoryTest {
         ).build()
         ids = FakeIdGenerator()
         time = FakeTimeSource()
-        repository = MealRepository(db.templateDao(), db.logDao(), db.productDao(), db.genericFoodMetaDao(), db.mediaDao(), ids, time)
+        repository = MealRepository(db.templateDao(), db.logDao(), db.productDao(), db.genericFoodMetaDao(), db.mediaDao(), db.mealTemplateDao(), ids, time)
 
         db.templateDao().insertFullTemplate(
             ActivityTemplateEntity("t1", "Diet", "restaurant", "#75D78D", CreatedBy.SYSTEM, "sum_field", "kcal", 1, false, 0, 1L),
@@ -296,6 +296,96 @@ class MealRepositoryTest {
         db.productDao().setFrontPhoto("p1", "m1")
 
         assertThat(item("i1").brands.single().photoPath).isEqualTo("/photos/front.jpg")
+    }
+
+    // --- Meal templates ---
+
+    private suspend fun riceProduct(): String = repository.createManualProduct(
+        "rice",
+        ValidatedProduct("India Gate", "Basmati", mapOf(NutrientKeys.ENERGY_KCAL to 350.0)),
+    )
+
+    @Test
+    fun saving_a_meal_as_a_template_captures_its_logged_foods() = runTest {
+        val riceId = riceProduct()
+        repository.logPortion("t1", "s1", item("i1"), "p1", grams = 150.0)
+        repository.logPortion("t1", "s1", item("i2"), riceId, grams = 200.0)
+
+        val id = checkNotNull(repository.saveMealAsTemplate("s1", "My usual lunch"))
+
+        val summaries = repository.observeMealTemplates("s1").first()
+        assertThat(summaries.map { it.name }).containsExactly("My usual lunch")
+        assertThat(summaries.single().mealTemplateId).isEqualTo(id)
+        assertThat(summaries.single().itemCount).isEqualTo(2)
+    }
+
+    @Test
+    fun saving_a_template_with_nothing_logged_is_a_no_op() = runTest {
+        assertThat(repository.saveMealAsTemplate("s1", "empty")).isNull()
+        assertThat(repository.observeMealTemplates("s1").first()).isEmpty()
+    }
+
+    @Test
+    fun one_tap_logs_the_whole_saved_meal() = runTest {
+        val riceId = riceProduct()
+        repository.logPortion("t1", "s1", item("i1"), "p1", grams = 150.0)
+        repository.logPortion("t1", "s1", item("i2"), riceId, grams = 200.0)
+        val id = checkNotNull(repository.saveMealAsTemplate("s1", "usual"))
+
+        // Clear the day, then re-log it from the template.
+        repository.removePortion(checkNotNull(item("i1").logged).entryId)
+        repository.removePortion(checkNotNull(item("i2").logged).entryId)
+        assertThat(meal().totals.energyKcal).isEqualTo(0.0)
+
+        repository.logMealTemplate(id)
+
+        assertThat(checkNotNull(item("i1").logged).grams).isEqualTo(150.0)
+        assertThat(checkNotNull(item("i2").logged).grams).isEqualTo(200.0)
+        // 296 x 1.5 + 350 x 2
+        assertThat(meal().totals.energyKcal).isWithin(0.001).of(444.0 + 700.0)
+    }
+
+    @Test
+    fun logging_a_template_replaces_todays_portions_without_duplicating() = runTest {
+        val riceId = riceProduct()
+        repository.logPortion("t1", "s1", item("i1"), "p1", grams = 150.0)
+        repository.logPortion("t1", "s1", item("i2"), riceId, grams = 200.0)
+        val id = checkNotNull(repository.saveMealAsTemplate("s1", "usual"))
+
+        // Something else is logged for one item; re-applying the template resets it.
+        repository.logPortion("t1", "s1", item("i1"), "p1", grams = 50.0)
+        repository.logMealTemplate(id)
+
+        assertThat(checkNotNull(item("i1").logged).grams).isEqualTo(150.0)
+        // Exactly one entry per item — the replace must not leave a second behind.
+        assertThat(db.logDao().getEntriesForDay("t1", time.today())).hasSize(2)
+    }
+
+    @Test
+    fun a_template_tracks_a_corrected_product_because_macros_are_read_time() = runTest {
+        repository.logPortion("t1", "s1", item("i1"), "p1", grams = 100.0)
+        val id = checkNotNull(repository.saveMealAsTemplate("s1", "usual"))
+        repository.removePortion(checkNotNull(item("i1").logged).entryId)
+
+        // The label was corrected after the template was saved.
+        db.productDao().upsertNutrients(
+            listOf(ProductNutrientEntity("n1", "p1", NutrientKeys.ENERGY_KCAL, 250.0)),
+        )
+        repository.logMealTemplate(id)
+
+        assertThat(meal().totals.energyKcal).isWithin(0.001).of(250.0)
+    }
+
+    @Test
+    fun deleting_a_template_leaves_logged_history_intact() = runTest {
+        repository.logPortion("t1", "s1", item("i1"), "p1", grams = 100.0)
+        val id = checkNotNull(repository.saveMealAsTemplate("s1", "usual"))
+
+        repository.deleteMealTemplate(id)
+
+        assertThat(repository.observeMealTemplates("s1").first()).isEmpty()
+        // The meal it was snapshotted from is untouched.
+        assertThat(checkNotNull(item("i1").logged).grams).isEqualTo(100.0)
     }
 
     @Test
