@@ -26,6 +26,13 @@ data class ActivityDetail(
     val name: String,
     val accent: ActivityKey,
     val subMenus: List<SubMenuRow>,
+    /**
+     * Whether this activity totals calories, and so shows the day-macros header.
+     *
+     * Read from the template's own summary metric (not by recognising "Diet" by name), so a
+     * calorie-tracking activity the user creates gets the same header.
+     */
+    val tracksCalories: Boolean = false,
 )
 
 /** One item inside a sub-menu, with the labels of the fields it would log. */

@@ -8,6 +8,7 @@ import dev.rishabh.dailytracker.core.db.dao.TemplateDao
 import dev.rishabh.dailytracker.core.db.entity.ActivityTemplateEntity
 import dev.rishabh.dailytracker.core.designsystem.accentKeyForColor
 import dev.rishabh.dailytracker.core.nutrition.MacroCalculator
+import dev.rishabh.dailytracker.core.nutrition.NutrientTotals
 import dev.rishabh.dailytracker.core.nutrition.homeMacroSummary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -119,8 +120,29 @@ class ActivityRepository @Inject constructor(
                         itemCount = templateDao.getItems(sub.subMenuId).size,
                     )
                 },
+                tracksCalories = template.tracksCalories,
             )
         }
+
+    /**
+     * The day's macro totals for a calorie-tracking activity, recomputed at read time.
+     *
+     * Powers the day-detail header. Like the Home summary it derives from current
+     * product_nutrients on every emission, so a corrected label moves the day total too —
+     * nothing here is cached or stored.
+     */
+    fun observeDayTotals(templateId: String): Flow<NutrientTotals> {
+        val today = time.today()
+        return combine(
+            logDao.observeProductQuantitiesForDay(templateId, today),
+            productDao.observeAllNutrients(),
+        ) { quantities, nutrients ->
+            MacroCalculator.total(
+                quantities.mapNotNull { q -> q.productId?.let { MacroCalculator.Quantity(it, q.grams) } },
+                nutrients.groupBy { it.productId },
+            )
+        }
+    }
 
     /** One sub-menu's items, each with the labels of the fields it would log. */
     fun observeSubMenuDetail(subMenuId: String): Flow<SubMenuDetail?> =
