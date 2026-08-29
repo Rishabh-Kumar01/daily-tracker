@@ -16,6 +16,7 @@ import dev.rishabh.dailytracker.feature.builder.ActivityBuilderScreen
 import dev.rishabh.dailytracker.feature.diet.scan.ScanScreen
 import dev.rishabh.dailytracker.feature.foods.MyFoodsScreen
 import dev.rishabh.dailytracker.feature.home.HomeScreen
+import dev.rishabh.dailytracker.feature.sleep.SleepScreen
 
 /**
  * The app's single navigation graph: Home → an activity's sub-menus → a sub-menu's items.
@@ -38,7 +39,12 @@ fun DailyTrackerNavHost(
                 onActivityClick = { templateId -> navController.navigate(Routes.activity(templateId)) },
                 onMyFoodsClick = { navController.navigate(Routes.MY_FOODS) },
                 onNewActivityClick = { navController.navigate(Routes.NEW_ACTIVITY) },
+                onWakeAlarmClick = { navController.navigate(Routes.WAKE_ALARM) },
             )
+        }
+
+        composable(Routes.WAKE_ALARM) {
+            SleepScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Routes.MY_FOODS) {

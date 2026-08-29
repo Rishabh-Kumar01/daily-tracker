@@ -8,6 +8,17 @@
     <!-- The app is fully usable without a camera; scanning falls back to manual entry. -->
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
+    <!-- Wake alarm: this is a genuine alarm-clock function, so USE_EXACT_ALARM (auto-granted)
+         is the right exact-alarm permission rather than the user-gated SCHEDULE_EXACT_ALARM. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:name=".DailyTrackerApplication"
         android:allowBackup="false"
@@ -26,6 +37,43 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The full-screen wake mission. Shows over the lockscreen; not exported, launched
+             only by our own full-screen intent; kept out of recents. -->
+        <activity
+            android:name=".feature.sleep.AlarmActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.DailyTracker" />
+
+        <!-- Receives the exact alarm; explicit PendingIntent target, so not exported. -->
+        <receiver
+            android:name=".feature.sleep.SleepAlarmReceiver"
+            android:exported="false" />
+
+        <!-- Re-arms alarms after reboot. -->
+        <receiver
+            android:name=".feature.sleep.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Owns the ringtone + full-screen intent while the alarm rings. specialUse: an
+             alarm ringtone has no dedicated FGS type. -->
+        <service
+            android:name=".feature.sleep.SleepAlarmService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Plays the user-set wake alarm ringtone and shows the full-screen dismissal mission." />
+        </service>
     </application>
 
 </manifest>

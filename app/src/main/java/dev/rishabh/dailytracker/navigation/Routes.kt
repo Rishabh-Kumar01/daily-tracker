@@ -15,6 +15,9 @@ object Routes {
     /** The manual builder for a user-created activity. */
     const val NEW_ACTIVITY = "newactivity"
 
+    /** The wake-alarm screen: confirm bedtime, schedule the calculated alarm. */
+    const val WAKE_ALARM = "wakealarm"
+
     const val ARG_TEMPLATE_ID = "templateId"
     const val ARG_SUB_MENU_ID = "subMenuId"
     const val ARG_ITEM_ID = "itemId"

@@ -18,6 +18,7 @@ import dev.rishabh.dailytracker.core.db.dao.LogDao
 import dev.rishabh.dailytracker.core.db.dao.MealTemplateDao
 import dev.rishabh.dailytracker.core.db.dao.MediaDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
+import dev.rishabh.dailytracker.core.db.dao.SleepDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
 import javax.inject.Singleton
 
@@ -57,6 +58,9 @@ object DatabaseModule {
 
     @Provides
     fun provideMealTemplateDao(db: DailyTrackerDatabase): MealTemplateDao = db.mealTemplateDao()
+
+    @Provides
+    fun provideSleepDao(db: DailyTrackerDatabase): SleepDao = db.sleepDao()
 }
 
 @Module

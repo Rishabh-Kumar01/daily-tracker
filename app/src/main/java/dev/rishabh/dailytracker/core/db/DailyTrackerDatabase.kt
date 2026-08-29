@@ -10,6 +10,7 @@ import dev.rishabh.dailytracker.core.db.dao.LogDao
 import dev.rishabh.dailytracker.core.db.dao.MealTemplateDao
 import dev.rishabh.dailytracker.core.db.dao.MediaDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
+import dev.rishabh.dailytracker.core.db.dao.SleepDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
 import dev.rishabh.dailytracker.core.db.entity.ActivityTemplateEntity
 import dev.rishabh.dailytracker.core.db.entity.AiJobEntity
@@ -81,6 +82,7 @@ abstract class DailyTrackerDatabase : RoomDatabase() {
     abstract fun genericFoodMetaDao(): GenericFoodMetaDao
     abstract fun mediaDao(): MediaDao
     abstract fun mealTemplateDao(): MealTemplateDao
+    abstract fun sleepDao(): SleepDao
 
     companion object {
         const val NAME = "daily_tracker.db"

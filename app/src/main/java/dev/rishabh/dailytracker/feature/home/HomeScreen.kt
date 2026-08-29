@@ -40,6 +40,7 @@ fun HomeScreen(
     onActivityClick: (templateId: String) -> Unit,
     onMyFoodsClick: () -> Unit,
     onNewActivityClick: () -> Unit = {},
+    onWakeAlarmClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -49,6 +50,7 @@ fun HomeScreen(
         onActivityClick = onActivityClick,
         onMyFoodsClick = onMyFoodsClick,
         onNewActivityClick = onNewActivityClick,
+        onWakeAlarmClick = onWakeAlarmClick,
         modifier = modifier,
     )
 }
@@ -59,6 +61,7 @@ private fun HomeContent(
     onActivityClick: (String) -> Unit,
     onMyFoodsClick: () -> Unit = {},
     onNewActivityClick: () -> Unit = {},
+    onWakeAlarmClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -103,6 +106,17 @@ private fun HomeContent(
                         .padding(top = Spacing.sp2)
                         .clip(RoundedCornerShape(Radius.md))
                         .clickable(role = Role.Button, onClick = onNewActivityClick)
+                        .padding(horizontal = Spacing.sp3, vertical = Spacing.sp3),
+                )
+            }
+            item {
+                Text(
+                    "Wake alarm →",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = OnSurfaceVariant,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(Radius.md))
+                        .clickable(role = Role.Button, onClick = onWakeAlarmClick)
                         .padding(horizontal = Spacing.sp3, vertical = Spacing.sp3),
                 )
             }
