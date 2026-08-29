@@ -20,7 +20,7 @@ Extend those schemas; do not invent parallel ones. Follow the Phase 1→4 build 
 
 - **Phase 1 (M1–M7): complete**, committed, and verified on-device — scaffold, Compose theme from design tokens, full Room data layer + seeder, component library + generic FieldRenderer, Home + template navigation, Diet meal flow with read-time macros, and the barcode lane via Open Food Facts.
 - **Phase 2a (M8–M11): complete**, committed, and verified on-device — see PHASE-2A-DIET.md. M8: bundled generic foods + USDA lookup + serving units. M9: My Foods library + product lifecycle (archive/edit). M10: product photos (OFF + camera) + re-scan feedback. M11: meal templates ("usual meals") for one-tap logging + a daily macro rollup with optional per-macro goals. Room DB at version 5.
-- **Phase 2b onward: not started** — deterministic-smart features (FSRS spaced repetition, frequency-ranked suggestions, weakness heatmaps, the Sleep activity), then Phase 3 (local LLM) and Phase 4 (cloud lanes + insights).
+- **Phase 2b onward: not started** — per PHASE-2A-DIET.md's "After Phase 2a", Phase 2b extends the proven engine to the other activities (Workout with previous-performance recall; Study PDF ingest → chapters, where local Gemma first enters; Sleep lock + mission alarm; custom activity creation). Phase 3+ then adds the deterministic-smart and AI layers (FSRS spaced repetition, MCQ generation, the AI router, cross-activity insights).
 
 ## The shape of the app, in one paragraph
 
