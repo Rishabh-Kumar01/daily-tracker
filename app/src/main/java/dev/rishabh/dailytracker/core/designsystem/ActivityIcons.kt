@@ -2,10 +2,20 @@ package dev.rishabh.dailytracker.core.designsystem
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Brush
 import androidx.compose.material.icons.rounded.Category
+import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.rounded.LocalDrink
+import androidx.compose.material.icons.rounded.Medication
+import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.SelfImprovement
+import androidx.compose.material.icons.rounded.Spa
+import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /*
@@ -39,8 +49,38 @@ fun iconForKey(key: String?): ImageVector = when (key) {
     "fitness_center" -> Icons.Rounded.FitnessCenter
     "school" -> Icons.Rounded.School
     "bedtime" -> Icons.Rounded.Bedtime
+    "self_improvement" -> Icons.Rounded.SelfImprovement
+    "medication" -> Icons.Rounded.Medication
+    "water_drop" -> Icons.Rounded.WaterDrop
+    "favorite" -> Icons.Rounded.Favorite
+    "spa" -> Icons.Rounded.Spa
+    "directions_run" -> Icons.Rounded.DirectionsRun
+    "menu_book" -> Icons.Rounded.MenuBook
+    "local_drink" -> Icons.Rounded.LocalDrink
+    "brush" -> Icons.Rounded.Brush
+    "checklist" -> Icons.Rounded.Checklist
+    "category" -> Icons.Rounded.Category
     else -> Icons.Rounded.Category
 }
+
+/** The icons a user can pick for a custom activity, as stable string keys. */
+val builderIconKeys: List<String> = listOf(
+    "category",
+    "self_improvement",
+    "medication",
+    "water_drop",
+    "favorite",
+    "spa",
+    "directions_run",
+    "menu_book",
+    "local_drink",
+    "brush",
+    "checklist",
+    "restaurant",
+    "fitness_center",
+    "school",
+    "bedtime",
+)
 
 /**
  * Maps a template's stored colour hex to one of the four accents.

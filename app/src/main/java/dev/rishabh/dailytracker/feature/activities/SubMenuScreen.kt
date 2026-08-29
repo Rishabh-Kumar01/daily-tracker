@@ -65,9 +65,9 @@ fun SubMenuScreen(
 ) {
     val detail by viewModel.state.collectAsStateWithLifecycle()
     // Which screen a sub-menu gets is a property of its data, not of which activity it
-    // belongs to: variant-backed items log through the meal screen, set_group items through
-    // the generic set-logging screen (Workout). Anything else still browses read-only until
-    // its own slice lands.
+    // belongs to: variant-backed items log through the meal screen, and any other items with
+    // fields log through the generic field screen (Workout, Study, Sleep, custom activities).
+    // The read-only leaf remains only for the degenerate case of a sub-menu with no fields.
     when {
         detail?.isVariantLogging == true -> MealScreen(
             onBack = onBack,
@@ -78,7 +78,7 @@ fun SubMenuScreen(
             modifier = modifier,
         )
 
-        detail?.hasSetLogging == true -> ItemLogScreen(onBack = onBack, modifier = modifier)
+        detail?.hasFieldLogging == true -> ItemLogScreen(onBack = onBack, modifier = modifier)
 
         else -> SubMenuContent(detail = detail, onBack = onBack, modifier = modifier)
     }

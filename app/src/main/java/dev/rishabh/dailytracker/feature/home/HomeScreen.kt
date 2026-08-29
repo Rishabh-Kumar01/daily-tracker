@@ -39,11 +39,18 @@ import java.util.Locale
 fun HomeScreen(
     onActivityClick: (templateId: String) -> Unit,
     onMyFoodsClick: () -> Unit,
+    onNewActivityClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    HomeContent(state = state, onActivityClick = onActivityClick, onMyFoodsClick = onMyFoodsClick, modifier = modifier)
+    HomeContent(
+        state = state,
+        onActivityClick = onActivityClick,
+        onMyFoodsClick = onMyFoodsClick,
+        onNewActivityClick = onNewActivityClick,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -51,6 +58,7 @@ private fun HomeContent(
     state: HomeUiState,
     onActivityClick: (String) -> Unit,
     onMyFoodsClick: () -> Unit = {},
+    onNewActivityClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -88,11 +96,22 @@ private fun HomeContent(
             }
             item {
                 Text(
-                    "My Foods →",
+                    "+ New activity",
                     style = MaterialTheme.typography.labelLarge,
                     color = OnSurfaceVariant,
                     modifier = Modifier
                         .padding(top = Spacing.sp2)
+                        .clip(RoundedCornerShape(Radius.md))
+                        .clickable(role = Role.Button, onClick = onNewActivityClick)
+                        .padding(horizontal = Spacing.sp3, vertical = Spacing.sp3),
+                )
+            }
+            item {
+                Text(
+                    "My Foods →",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = OnSurfaceVariant,
+                    modifier = Modifier
                         .clip(RoundedCornerShape(Radius.md))
                         .clickable(role = Role.Button, onClick = onMyFoodsClick)
                         .padding(horizontal = Spacing.sp3, vertical = Spacing.sp3),

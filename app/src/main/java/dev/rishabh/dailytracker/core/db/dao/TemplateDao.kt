@@ -31,6 +31,10 @@ interface TemplateDao {
     @Query("SELECT * FROM activity_templates WHERE name = :name AND created_by = :createdBy LIMIT 1")
     suspend fun findTemplateByName(name: String, createdBy: CreatedBy): ActivityTemplateEntity?
 
+    /** Highest sort_order in use, or -1 when empty — a new activity appends after it. */
+    @Query("SELECT COALESCE(MAX(sort_order), -1) FROM activity_templates")
+    suspend fun maxTemplateSortOrder(): Int
+
     @Query("SELECT COUNT(*) FROM activity_templates WHERE created_by = :createdBy")
     suspend fun countTemplatesBy(createdBy: CreatedBy): Int
 

@@ -12,6 +12,9 @@ object Routes {
     /** The My Foods library — browse, edit, and archive products. */
     const val MY_FOODS = "myfoods"
 
+    /** The manual builder for a user-created activity. */
+    const val NEW_ACTIVITY = "newactivity"
+
     const val ARG_TEMPLATE_ID = "templateId"
     const val ARG_SUB_MENU_ID = "subMenuId"
     const val ARG_ITEM_ID = "itemId"

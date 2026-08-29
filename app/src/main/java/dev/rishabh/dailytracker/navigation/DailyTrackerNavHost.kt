@@ -12,6 +12,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dev.rishabh.dailytracker.feature.activities.ActivityScreen
 import dev.rishabh.dailytracker.feature.activities.SubMenuScreen
+import dev.rishabh.dailytracker.feature.builder.ActivityBuilderScreen
 import dev.rishabh.dailytracker.feature.diet.scan.ScanScreen
 import dev.rishabh.dailytracker.feature.foods.MyFoodsScreen
 import dev.rishabh.dailytracker.feature.home.HomeScreen
@@ -36,11 +37,24 @@ fun DailyTrackerNavHost(
             HomeScreen(
                 onActivityClick = { templateId -> navController.navigate(Routes.activity(templateId)) },
                 onMyFoodsClick = { navController.navigate(Routes.MY_FOODS) },
+                onNewActivityClick = { navController.navigate(Routes.NEW_ACTIVITY) },
             )
         }
 
         composable(Routes.MY_FOODS) {
             MyFoodsScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.NEW_ACTIVITY) {
+            ActivityBuilderScreen(
+                onBack = { navController.popBackStack() },
+                // Land in the freshly-created activity, dropping the builder from the stack.
+                onSaved = { templateId ->
+                    navController.navigate(Routes.activity(templateId)) {
+                        popUpTo(Routes.NEW_ACTIVITY) { inclusive = true }
+                    }
+                },
+            )
         }
 
         composable(

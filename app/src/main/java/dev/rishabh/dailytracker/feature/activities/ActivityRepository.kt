@@ -1,7 +1,6 @@
 package dev.rishabh.dailytracker.feature.activities
 
 import dev.rishabh.dailytracker.core.common.TimeSource
-import dev.rishabh.dailytracker.core.db.FieldType
 import dev.rishabh.dailytracker.core.db.SummaryMetricTypes
 import dev.rishabh.dailytracker.core.db.dao.LogDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
@@ -163,11 +162,10 @@ class ActivityRepository @Inject constructor(
                         fieldLabels = fieldsByItem[item.itemId].orEmpty().map { it.label },
                     )
                 },
-                // Data-driven, like isVariantLogging: any sub-menu whose items carry a
-                // set_group field logs through the generic set screen (Workout is the first).
-                hasSetLogging = items.isNotEmpty() && fieldsByItem.values.any { fields ->
-                    fields.any { it.type == FieldType.SET_GROUP.wire }
-                },
+                // Data-driven, like isVariantLogging: any non-variant sub-menu whose items
+                // carry fields logs through the generic field screen — Workout's sets,
+                // Study/Sleep's duration and scales, and every custom activity alike.
+                hasFieldLogging = items.isNotEmpty() && fieldsByItem.values.any { it.isNotEmpty() },
             )
         }
 }
