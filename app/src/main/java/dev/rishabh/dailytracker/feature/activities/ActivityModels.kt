@@ -49,6 +49,11 @@ data class SubMenuDetail(
     val name: String,
     val accent: ActivityKey,
     val items: List<ItemRowDetail>,
+    /**
+     * Whether the items carry a set_group field, and so log through the generic set-logging
+     * screen (Workout). Decided from the template data, never by activity name.
+     */
+    val hasSetLogging: Boolean = false,
 ) {
     /**
      * Whether this sub-menu logs the food -> brand -> product pattern, and so gets the meal

@@ -72,6 +72,20 @@ interface LogDao {
     )
     suspend fun getEntriesForSubMenuDay(subMenuId: String, localDate: String): List<LogEntryEntity>
 
+    /**
+     * The most recent entry for an item on a day strictly before [today] — the "last time"
+     * a Workout exercise was done, for previous-performance recall.
+     */
+    @Query(
+        """
+        SELECT * FROM log_entries
+        WHERE item_id = :itemId AND local_date < :today
+        ORDER BY logged_at DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun getLatestEntryForItemBefore(itemId: String, today: String): LogEntryEntity?
+
     @Query("SELECT * FROM log_values WHERE entry_id = :entryId")
     suspend fun getValues(entryId: String): List<LogValueEntity>
 

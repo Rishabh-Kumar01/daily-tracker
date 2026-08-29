@@ -1,6 +1,7 @@
 package dev.rishabh.dailytracker.feature.activities
 
 import dev.rishabh.dailytracker.core.common.TimeSource
+import dev.rishabh.dailytracker.core.db.FieldType
 import dev.rishabh.dailytracker.core.db.SummaryMetricTypes
 import dev.rishabh.dailytracker.core.db.dao.LogDao
 import dev.rishabh.dailytracker.core.db.dao.ProductDao
@@ -149,6 +150,7 @@ class ActivityRepository @Inject constructor(
         templateDao.observeItems(subMenuId).map { items ->
             val subMenu = templateDao.getSubMenu(subMenuId) ?: return@map null
             val template = templateDao.getTemplate(subMenu.templateId)
+            val fieldsByItem = items.associate { it.itemId to templateDao.getFields(it.itemId) }
             SubMenuDetail(
                 subMenuId = subMenu.subMenuId,
                 name = subMenu.name,
@@ -158,8 +160,13 @@ class ActivityRepository @Inject constructor(
                         itemId = item.itemId,
                         name = item.name,
                         hasVariants = item.hasVariants,
-                        fieldLabels = templateDao.getFields(item.itemId).map { it.label },
+                        fieldLabels = fieldsByItem[item.itemId].orEmpty().map { it.label },
                     )
+                },
+                // Data-driven, like isVariantLogging: any sub-menu whose items carry a
+                // set_group field logs through the generic set screen (Workout is the first).
+                hasSetLogging = items.isNotEmpty() && fieldsByItem.values.any { fields ->
+                    fields.any { it.type == FieldType.SET_GROUP.wire }
                 },
             )
         }

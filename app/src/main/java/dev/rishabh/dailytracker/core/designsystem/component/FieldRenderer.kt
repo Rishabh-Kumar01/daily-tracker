@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Timer
@@ -47,8 +48,12 @@ import dev.rishabh.dailytracker.core.designsystem.Surface2
 import dev.rishabh.dailytracker.core.designsystem.Surface3
 import dev.rishabh.dailytracker.core.designsystem.TypeNumeric
 import dev.rishabh.dailytracker.core.designsystem.component.model.LogValueDraft
+import dev.rishabh.dailytracker.core.designsystem.component.model.SetRow
 import dev.rishabh.dailytracker.core.designsystem.component.model.coerceToBounds
 import dev.rishabh.dailytracker.core.designsystem.component.model.durationOptions
+import dev.rishabh.dailytracker.core.designsystem.component.model.encodeSetRows
+import dev.rishabh.dailytracker.core.designsystem.component.model.formatWeight
+import dev.rishabh.dailytracker.core.designsystem.component.model.parseSetRows
 import dev.rishabh.dailytracker.core.designsystem.component.model.quantityOptions
 import dev.rishabh.dailytracker.core.designsystem.component.model.scaleOptions
 import dev.rishabh.dailytracker.core.designsystem.component.model.selectOptions
@@ -316,6 +321,7 @@ private fun SetGroupField(
     enabled: Boolean,
 ) {
     val sets = parseSetRows(draft.json)
+    fun update(next: List<SetRow>) = onChange(draft.withJson(encodeSetRows(next)))
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sp2)) {
         FieldLabel(field.label)
         sets.forEachIndexed { index, set ->
@@ -325,12 +331,33 @@ private fun SetGroupField(
                     .heightIn(min = Dimens.hitMin)
                     .clip(RoundedCornerShape(Radius.md))
                     .background(Surface3)
-                    .padding(horizontal = Spacing.sp3),
+                    .padding(horizontal = Spacing.sp3, vertical = Spacing.sp1),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sp3),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sp2),
             ) {
-                Text("Set ${index + 1}", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant, modifier = Modifier.weight(1f))
-                Text("${set.reps} × ${formatAmount(set.weight)} kg", style = TypeNumeric, color = OnSurface)
+                Text(
+                    "${index + 1}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OnSurfaceVariant,
+                )
+                // Reps: whole steps of 1, never below 0.
+                MiniStepper(
+                    value = "${set.reps}",
+                    enabled = enabled,
+                    onMinus = { update(sets.mapAt(index) { it.copy(reps = (it.reps - 1).coerceAtLeast(0)) }) },
+                    onPlus = { update(sets.mapAt(index) { it.copy(reps = it.reps + 1) }) },
+                )
+                Text("×", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceFaint)
+                // Weight: 2.5 kg steps, the smallest common plate increment, never below 0.
+                MiniStepper(
+                    value = "${formatWeight(set.weight)} kg",
+                    enabled = enabled,
+                    onMinus = { update(sets.mapAt(index) { it.copy(weight = (it.weight - WEIGHT_STEP).coerceAtLeast(0.0)) }) },
+                    onPlus = { update(sets.mapAt(index) { it.copy(weight = it.weight + WEIGHT_STEP) }) },
+                )
+                RoundIconButton(Icons.Rounded.Close, "remove set", enabled) {
+                    update(sets.filterIndexed { i, _ -> i != index })
+                }
             }
         }
         Row(
@@ -338,7 +365,9 @@ private fun SetGroupField(
                 .heightIn(min = Dimens.hitMin)
                 .clip(ShapeFull)
                 .clickable(enabled = enabled, role = Role.Button) {
-                    onChange(draft.withJson(appendSetRow(sets)))
+                    // A new set copies the last one's load — you rarely change weight between
+                    // sets, so this is the fewest taps to log another set.
+                    update(sets + (sets.lastOrNull() ?: SetRow(reps = 8, weight = 0.0)))
                 }
                 .padding(horizontal = Spacing.sp3),
             verticalAlignment = Alignment.CenterVertically,
@@ -347,6 +376,22 @@ private fun SetGroupField(
             Icon(Icons.Rounded.Add, contentDescription = null, tint = accent.base, modifier = Modifier.size(20.dp))
             Text("Add set", style = MaterialTheme.typography.labelMedium, color = accent.base)
         }
+    }
+}
+
+private const val WEIGHT_STEP = 2.5
+
+/** Applies [transform] to the row at [index], leaving the rest of the list unchanged. */
+private inline fun List<SetRow>.mapAt(index: Int, transform: (SetRow) -> SetRow): List<SetRow> =
+    mapIndexed { i, row -> if (i == index) transform(row) else row }
+
+/** A compact −/value/+ control that keeps a set row on one line. */
+@Composable
+private fun MiniStepper(value: String, enabled: Boolean, onMinus: () -> Unit, onPlus: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sp1)) {
+        RoundIconButton(Icons.Rounded.Remove, "less", enabled, onMinus)
+        Text(value, style = TypeNumeric, color = OnSurface, textAlign = TextAlign.Center)
+        RoundIconButton(Icons.Rounded.Add, "more", enabled, onPlus)
     }
 }
 
@@ -439,27 +484,7 @@ private fun RoundIconButton(
 
 // --- small pure helpers (kept here so the field composables stay declarative) ---
 
-private data class SetRow(val reps: Int, val weight: Double)
-
 private val setJson = Json { ignoreUnknownKeys = true; isLenient = true }
-
-private fun parseSetRows(json: String?): List<SetRow> {
-    if (json.isNullOrBlank()) return emptyList()
-    return runCatching {
-        (setJson.parseToJsonElement(json) as JsonArray).map { el ->
-            val obj = el as kotlinx.serialization.json.JsonObject
-            SetRow(
-                reps = (obj["reps"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0,
-                weight = (obj["weight"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0,
-            )
-        }
-    }.getOrDefault(emptyList())
-}
-
-private fun appendSetRow(existing: List<SetRow>): String {
-    val next = existing + SetRow(reps = 8, weight = 0.0)
-    return next.joinToString(prefix = "[", postfix = "]") { """{"reps":${it.reps},"weight":${it.weight}}""" }
-}
 
 private fun parseIdList(json: String?): List<String> {
     if (json.isNullOrBlank()) return emptyList()
