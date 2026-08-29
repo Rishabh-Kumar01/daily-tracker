@@ -3,6 +3,7 @@ package dev.rishabh.dailytracker.core.db.seed
 import dev.rishabh.dailytracker.core.common.IdGenerator
 import dev.rishabh.dailytracker.core.common.TimeSource
 import dev.rishabh.dailytracker.core.db.CreatedBy
+import dev.rishabh.dailytracker.core.db.dao.LogDao
 import dev.rishabh.dailytracker.core.db.dao.TemplateDao
 import dev.rishabh.dailytracker.core.db.entity.ActivityTemplateEntity
 import dev.rishabh.dailytracker.core.db.entity.ItemEntity
@@ -12,37 +13,74 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Installs the built-in activities as template rows.
+ * Installs and updates the built-in activities as template rows.
  *
- * Idempotent per template rather than "seed once ever": it checks each built-in by name,
- * so a built-in added in a later release installs on upgrade without re-installing (or
- * duplicating) the ones already present. A "have I seeded?" flag could not do that.
+ * Idempotent per template rather than "seed once ever": it checks each built-in by name, so a
+ * built-in added in a later release installs on upgrade without duplicating the ones already
+ * present. When a built-in's structure changes, its [TemplateSpec.schemaVersion] is bumped and
+ * the stored template is rebuilt in place — same template_id, refreshed sub-menus/items/fields.
  *
- * A template the user archived stays archived — [seedIfNeeded] only ever adds what is
- * absent, and never resurrects or overwrites.
+ * A template the user archived stays archived: an install only adds what is absent, and a
+ * rebuild preserves the archive flag.
  */
 @Singleton
 class TemplateSeeder @Inject constructor(
     private val templateDao: TemplateDao,
+    private val logDao: LogDao,
     private val ids: IdGenerator,
     private val time: TimeSource,
 ) {
 
-    /** @return the names of templates actually installed by this call. */
+    /** @return the names of templates installed or rebuilt by this call. */
     suspend fun seedIfNeeded(): List<String> {
-        val installed = mutableListOf<String>()
+        val touched = mutableListOf<String>()
         BUILT_IN_TEMPLATES.forEachIndexed { index, spec ->
-            if (templateDao.findTemplateByName(spec.name, CreatedBy.SYSTEM) != null) return@forEachIndexed
-            install(spec, sortOrder = index)
-            installed += spec.name
+            val existing = templateDao.findTemplateByName(spec.name, CreatedBy.SYSTEM)
+            when {
+                existing == null -> {
+                    install(spec, sortOrder = index)
+                    touched += spec.name
+                }
+                existing.schemaVersion < spec.schemaVersion -> {
+                    rebuild(existing, spec)
+                    touched += spec.name
+                }
+            }
         }
-        return installed
+        return touched
     }
 
     private suspend fun install(spec: TemplateSpec, sortOrder: Int) {
-        val now = time.nowMillis()
-        val templateId = ids.newId()
+        val built = build(spec, ids.newId(), sortOrder, isArchived = false, createdAt = time.nowMillis())
+        templateDao.insertFullTemplate(built.template, built.subMenus, built.items, built.fields)
+    }
 
+    /**
+     * Replaces a built-in's structure to match the current spec.
+     *
+     * The activity's logs are cleared first: they reference the items about to be swapped out,
+     * and no schema keeps orphaned items around. This is why a built-in restructure is a
+     * deliberate, version-gated event, not something an ordinary release does casually.
+     */
+    private suspend fun rebuild(existing: ActivityTemplateEntity, spec: TemplateSpec) {
+        logDao.deleteEntriesForTemplate(existing.templateId)
+        val built = build(
+            spec = spec,
+            templateId = existing.templateId,
+            sortOrder = existing.sortOrder,
+            isArchived = existing.isArchived,
+            createdAt = existing.createdAt,
+        )
+        templateDao.rebuildStructure(built.template, built.subMenus, built.items, built.fields)
+    }
+
+    private fun build(
+        spec: TemplateSpec,
+        templateId: String,
+        sortOrder: Int,
+        isArchived: Boolean,
+        createdAt: Long,
+    ): Built {
         val template = ActivityTemplateEntity(
             templateId = templateId,
             name = spec.name,
@@ -51,10 +89,10 @@ class TemplateSeeder @Inject constructor(
             createdBy = CreatedBy.SYSTEM,
             summaryMetricType = spec.summaryMetricType,
             summaryMetricLabel = spec.summaryMetricLabel,
-            schemaVersion = SCHEMA_VERSION,
-            isArchived = false,
+            schemaVersion = spec.schemaVersion,
+            isArchived = isArchived,
             sortOrder = sortOrder,
-            createdAt = now,
+            createdAt = createdAt,
         )
 
         val subMenus = mutableListOf<SubMenuEntity>()
@@ -99,11 +137,13 @@ class TemplateSeeder @Inject constructor(
             }
         }
 
-        templateDao.insertFullTemplate(template, subMenus, items, fields)
+        return Built(template, subMenus, items, fields)
     }
 
-    private companion object {
-        /** Template format version; bump only when the template JSON shape changes. */
-        const val SCHEMA_VERSION = 1
-    }
+    private class Built(
+        val template: ActivityTemplateEntity,
+        val subMenus: List<SubMenuEntity>,
+        val items: List<ItemEntity>,
+        val fields: List<ItemFieldEntity>,
+    )
 }

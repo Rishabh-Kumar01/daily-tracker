@@ -93,6 +93,31 @@ interface TemplateDao {
     @Query("UPDATE activity_templates SET is_archived = :archived WHERE template_id = :templateId")
     suspend fun setArchived(templateId: String, archived: Boolean)
 
+    /** Cascades to items and item_fields via the foreign keys. */
+    @Query("DELETE FROM sub_menus WHERE template_id = :templateId")
+    suspend fun deleteSubMenusForTemplate(templateId: String)
+
+    /**
+     * Rebuilds a built-in's structure in place when its version bumps.
+     *
+     * Keeps the same template_id (so its identity, sort order and archive state survive),
+     * swaps every sub-menu/item/field, and refreshes the template row. Callers must clear the
+     * template's log_entries first — the old items cannot cascade out from under them.
+     */
+    @Transaction
+    suspend fun rebuildStructure(
+        template: ActivityTemplateEntity,
+        subMenus: List<SubMenuEntity>,
+        items: List<ItemEntity>,
+        fields: List<ItemFieldEntity>,
+    ) {
+        deleteSubMenusForTemplate(template.templateId)
+        upsertTemplate(template)
+        insertSubMenus(subMenus)
+        insertItems(items)
+        insertFields(fields)
+    }
+
     /**
      * Installs a whole template in one transaction.
      *

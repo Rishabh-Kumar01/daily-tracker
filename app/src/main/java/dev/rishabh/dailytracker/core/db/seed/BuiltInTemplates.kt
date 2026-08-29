@@ -44,6 +44,11 @@ data class TemplateSpec(
     val summaryMetricType: String?,
     val summaryMetricLabel: String?,
     val subMenus: List<SubMenuSpec>,
+    /**
+     * Template structure version. Bump when a built-in's sub-menus/items/fields change so the
+     * seeder rebuilds it on existing installs; a fresh install just gets the current shape.
+     */
+    val schemaVersion: Int = 1,
 )
 
 private const val SCHEDULE_DAILY = """{"type":"daily"}"""
@@ -114,7 +119,13 @@ private val exerciseNote = FieldSpec(
     label = "Note",
 )
 
+/** A weighted exercise: reps × weight sets, plus a note. */
 private fun exercise(name: String) = ItemSpec(name = name, fields = listOf(setGroupField, exerciseNote))
+
+/** A stretch is logged as a simple "done" tick — no load, no reps. */
+private val stretchDone = FieldSpec(fieldKey = "done", type = FieldType.CHECKBOX, label = "Done")
+
+private fun stretch(name: String) = ItemSpec(name = name, fields = listOf(stretchDone))
 
 private val workout = TemplateSpec(
     name = "Workout",
@@ -122,10 +133,16 @@ private val workout = TemplateSpec(
     color = "#FFA460",
     summaryMetricType = SummaryMetricTypes.COMPLETION_PERCENT,
     summaryMetricLabel = "done",
+    // v2: a body-part split with a stretch section, replacing the original Push/Pull/Legs.
+    schemaVersion = 2,
     subMenus = listOf(
-        SubMenuSpec("Push", items = listOf("Bench Press", "Overhead Press", "Triceps Pushdown").map(::exercise)),
-        SubMenuSpec("Pull", items = listOf("Deadlift", "Pull-ups", "Barbell Row").map(::exercise)),
-        SubMenuSpec("Legs", items = listOf("Squat", "Leg Press", "Calf Raise").map(::exercise)),
+        SubMenuSpec("Chest", items = listOf("Bench Press", "Incline Dumbbell Press", "Chest Fly", "Cable Crossover").map(::exercise)),
+        SubMenuSpec("Triceps", items = listOf("Triceps Pushdown", "Overhead Triceps Extension", "Skull Crushers", "Dips").map(::exercise)),
+        SubMenuSpec("Back", items = listOf("Deadlift", "Pull-ups", "Barbell Row", "Lat Pulldown").map(::exercise)),
+        SubMenuSpec("Biceps", items = listOf("Barbell Curl", "Dumbbell Curl", "Hammer Curl", "Preacher Curl").map(::exercise)),
+        SubMenuSpec("Shoulders", items = listOf("Overhead Press", "Lateral Raise", "Front Raise", "Face Pull").map(::exercise)),
+        SubMenuSpec("Legs", items = listOf("Squat", "Leg Press", "Romanian Deadlift", "Leg Curl", "Calf Raise").map(::exercise)),
+        SubMenuSpec("Stretch", items = listOf("Hamstring Stretch", "Hip Flexor Stretch", "Quad Stretch", "Chest Stretch", "Shoulder Stretch", "Child's Pose").map(::stretch)),
     ),
 )
 

@@ -245,6 +245,15 @@ interface LogDao {
     @Query("DELETE FROM log_entries WHERE entry_id = :entryId")
     suspend fun deleteEntry(entryId: String)
 
+    /**
+     * Drops every log for an activity — used when a built-in's structure is rebuilt.
+     *
+     * The entries reference the items about to be replaced, so they cannot survive the
+     * rebuild; deleting them here first also clears the way for the items to cascade out.
+     */
+    @Query("DELETE FROM log_entries WHERE template_id = :templateId")
+    suspend fun deleteEntriesForTemplate(templateId: String)
+
     @Transaction
     suspend fun replaceLog(entry: LogEntryEntity, values: List<LogValueEntity>) {
         deleteEntry(entry.entryId)

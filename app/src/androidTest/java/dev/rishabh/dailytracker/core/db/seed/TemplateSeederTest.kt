@@ -36,7 +36,7 @@ class TemplateSeederTest {
         dao = db.templateDao()
         ids = FakeIdGenerator()
         time = FakeTimeSource()
-        seeder = TemplateSeeder(dao, ids, time)
+        seeder = TemplateSeeder(dao, db.logDao(), ids, time)
     }
 
     @After
@@ -170,20 +170,70 @@ class TemplateSeederTest {
     }
 
     @Test
-    fun workoutUsesSetGroupsAndSleepUsesTimeAndScale() = runTest {
+    fun workoutIsABodyPartSplitWithAStretchSection() = runTest {
         seeder.seedIfNeeded()
 
         val workout = dao.findTemplateByName("Workout", CreatedBy.SYSTEM)!!
-        val push = dao.getSubMenus(workout.templateId).single { it.name == "Push" }
-        val bench = dao.getItems(push.subMenuId).single { it.name == "Bench Press" }
+        assertThat(dao.getSubMenus(workout.templateId).map { it.name })
+            .containsExactly("Chest", "Triceps", "Back", "Biceps", "Shoulders", "Legs", "Stretch")
+            .inOrder()
+
+        // Exercises still log as reps × weight sets, under their body part.
+        val chest = dao.getSubMenus(workout.templateId).single { it.name == "Chest" }
+        val bench = dao.getItems(chest.subMenuId).single { it.name == "Bench Press" }
         assertThat(dao.getFields(bench.itemId).map { FieldType.fromWire(it.type) })
             .containsExactly(FieldType.SET_GROUP, FieldType.NOTE).inOrder()
+
+        // Stretches are a simple done tick.
+        val stretch = dao.getSubMenus(workout.templateId).single { it.name == "Stretch" }
+        val hamstring = dao.getItems(stretch.subMenuId).single { it.name == "Hamstring Stretch" }
+        assertThat(dao.getFields(hamstring.itemId).map { FieldType.fromWire(it.type) })
+            .containsExactly(FieldType.CHECKBOX).inOrder()
+    }
+
+    @Test
+    fun sleepUsesTimeAndScale() = runTest {
+        seeder.seedIfNeeded()
 
         val sleep = dao.findTemplateByName("Sleep", CreatedBy.SYSTEM)!!
         val bedtime = dao.getSubMenus(sleep.templateId).single { it.name == "Bedtime" }
         val bed = dao.getItems(bedtime.subMenuId).single { it.name == "Bedtime" }
         assertThat(dao.getFields(bed.itemId).map { FieldType.fromWire(it.type) })
             .containsExactly(FieldType.TIME, FieldType.SCALE).inOrder()
+    }
+
+    @Test
+    fun a_built_in_whose_version_bumped_is_rebuilt_and_its_logs_cleared() = runTest {
+        seeder.seedIfNeeded()
+        val workout = dao.findTemplateByName("Workout", CreatedBy.SYSTEM)!!
+        val chest = dao.getSubMenus(workout.templateId).single { it.name == "Chest" }
+        val bench = dao.getItems(chest.subMenuId).single { it.name == "Bench Press" }
+        // A logged set under the current structure.
+        db.logDao().insertLog(
+            dev.rishabh.dailytracker.core.db.entity.LogEntryEntity(
+                entryId = "e1", templateId = workout.templateId, subMenuId = chest.subMenuId,
+                itemId = bench.itemId, loggedAt = 1L, localDate = "2026-07-17",
+            ),
+            listOf(
+                dev.rishabh.dailytracker.core.db.entity.LogValueEntity(
+                    valueId = "v1", entryId = "e1", fieldKey = "sets", valueJson = "[]",
+                ),
+            ),
+        )
+
+        // Simulate an older stored structure so the next seed rebuilds it.
+        db.openHelper.writableDatabase.execSQL(
+            "UPDATE activity_templates SET schema_version = 1 WHERE template_id = '${workout.templateId}'",
+        )
+        val touched = seeder.seedIfNeeded()
+
+        assertThat(touched).containsExactly("Workout")
+        // Same template id, refreshed structure, old log gone.
+        assertThat(dao.findTemplateByName("Workout", CreatedBy.SYSTEM)!!.templateId)
+            .isEqualTo(workout.templateId)
+        assertThat(db.logDao().getEntry("e1")).isNull()
+        assertThat(dao.getSubMenus(workout.templateId).map { it.name })
+            .contains("Stretch")
     }
 
     @Test
